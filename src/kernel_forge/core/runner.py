@@ -82,9 +82,11 @@ class ForgeRunner:
 		# Tool registry
 		hw = self._config.hardware
 		self._registry = ToolRegistry()
-		self._registry.register(
-			GpuStatusTool(self._executor, gpu_id=hw.gpu_id, memory_threshold_mib=hw.gpu_memory_threshold_mib)
-		)
+		self._registry.register(GpuStatusTool(
+			self._executor,
+			gpu_id=hw.gpu_id,
+			memory_threshold_mib=hw.gpu_memory_threshold_mib,
+		))
 		self._registry.register(CudaEventsBench(self._executor))
 		self._registry.register(NcuProfile(self._executor))
 		self._registry.register(KernelCompiler(self._executor))

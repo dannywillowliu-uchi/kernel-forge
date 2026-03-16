@@ -6,7 +6,6 @@ from pathlib import Path
 
 from kernel_forge.harness.kernelbench import KernelBenchAdapter
 
-
 SAMPLE_PROBLEM = '''\
 import torch
 import torch.nn as nn

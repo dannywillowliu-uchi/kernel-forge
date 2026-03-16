@@ -23,7 +23,6 @@ from kernel_forge.core.types import (
 	StrategyCategory,
 )
 
-
 # -- Fixtures --
 
 

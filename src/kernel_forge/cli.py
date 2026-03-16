@@ -17,10 +17,31 @@ def main() -> None:
 
 @main.command()
 @click.argument("problem_name")
-@click.option("--goal", default="latency", type=click.Choice(["latency", "throughput", "memory", "balanced"]), help="Optimization goal.")
-@click.option("--config", "config_path", default=None, type=click.Path(exists=True, path_type=Path), help="Path to TOML config file.")
-@click.option("--dry-run", is_flag=True, default=False, help="Run in dry-run mode without GPU access.")
-@click.option("--difficulty", default=None, type=int, help="Filter problems by difficulty level.")
+@click.option(
+	"--goal",
+	default="latency",
+	type=click.Choice(["latency", "throughput", "memory", "balanced"]),
+	help="Optimization goal.",
+)
+@click.option(
+	"--config",
+	"config_path",
+	default=None,
+	type=click.Path(exists=True, path_type=Path),
+	help="Path to TOML config file.",
+)
+@click.option(
+	"--dry-run",
+	is_flag=True,
+	default=False,
+	help="Run in dry-run mode without GPU access.",
+)
+@click.option(
+	"--difficulty",
+	default=None,
+	type=int,
+	help="Filter problems by difficulty level.",
+)
 def optimize(
 	problem_name: str,
 	goal: str,
@@ -33,8 +54,18 @@ def optimize(
 
 
 @main.command("list-problems")
-@click.option("--difficulty", default=None, type=int, help="Filter by difficulty level.")
-@click.option("--problems-dir", default=None, type=click.Path(exists=True, path_type=Path), help="Path to KernelBench problems directory.")
+@click.option(
+	"--difficulty",
+	default=None,
+	type=int,
+	help="Filter by difficulty level.",
+)
+@click.option(
+	"--problems-dir",
+	default=None,
+	type=click.Path(exists=True, path_type=Path),
+	help="Path to KernelBench problems directory.",
+)
 def list_problems(
 	difficulty: int | None,
 	problems_dir: Path | None,
