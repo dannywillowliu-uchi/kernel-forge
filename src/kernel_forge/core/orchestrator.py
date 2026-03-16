@@ -419,6 +419,32 @@ class Orchestrator:
 				logger.info("[RESULT] FAILED%s", failure_desc)
 
 			# Step 4: DIAGNOSE for next iteration
+			# Diagnose after correct results; after failures, infer from failure type
+			if not result.correct and result.failure:
+				ft = result.failure.failure_type
+				if ft == FailureType.CORRECTNESS_FAILURE:
+					logger.info(
+						"[DIAGNOSE] Correctness failure -- "
+						"switching strategy to avoid precision issues"
+					)
+					# Cycle through strategies that don't change precision
+					if current_strategy in (
+						"tf32_tensor_cores", "fp16_bf16_computation",
+						"fp8_quantization",
+					):
+						current_strategy = "torch_compile_integration"
+					elif current_strategy == "torch_compile_integration":
+						current_strategy = "kernel_fusion"
+					else:
+						current_strategy = "occupancy_tuning"
+				elif ft == FailureType.COMPILATION_ERROR:
+					logger.info(
+						"[DIAGNOSE] Compilation error -- "
+						"trying simpler approach"
+					)
+					current_strategy = "torch_compile_integration"
+				logger.info("[STRATEGIZE] Switching to: %s", current_strategy)
+
 			if result.correct and result.optimized_ms > 0:
 				profile = ProfileData(
 					runtime_us=result.optimized_ms * 1000,

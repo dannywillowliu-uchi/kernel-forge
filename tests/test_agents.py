@@ -170,7 +170,7 @@ class TestBuildGeneratePrompt:
 		)
 		assert "Prior Attempts" in prompt
 		assert "1.80x" in prompt
-		assert "INCORRECT" in prompt
+		assert "FAILED" in prompt
 
 	def test_includes_knowledge_context(self) -> None:
 		prompt = build_generate_prompt(

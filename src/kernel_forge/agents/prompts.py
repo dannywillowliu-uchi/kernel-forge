@@ -34,10 +34,23 @@ def build_generate_prompt(
 
 	sections.append(
 		"You are an expert GPU kernel optimization engineer. "
-		"Generate an optimized CUDA or Triton kernel for the given problem.\n\n"
+		"Generate an optimized kernel for the given problem.\n\n"
+		"CRITICAL RULES:\n"
+		"1. Output MUST define a `ModelNew` class with the same "
+		"`forward()` signature as the reference `Model`\n"
+		"2. Output must be a valid Python file that can be imported\n"
+		"3. Do NOT wrap code in markdown fences (no ```)\n"
+		"4. The reference implementation uses FP32. The baseline "
+		"does NOT enable TF32. Enabling TF32 via "
+		"`torch.backends.cuda.matmul.allow_tf32 = True` is a valid "
+		"and high-impact optimization for matmul-like kernels.\n"
+		"5. BF16/FP16 casting will likely FAIL correctness check "
+		"(rtol=1e-3) at large matrix sizes due to precision loss.\n"
+		"6. Custom CUDA kernels via load_inline are slower than cuBLAS "
+		"for standard matmul. Prefer PyTorch ops with TF32/compile.\n\n"
 		"IMPORTANT: Wrap your kernel source code in markers:\n"
 		"KERNEL_SOURCE_START\n<your kernel code>\nKERNEL_SOURCE_END\n"
-		"APPROACH_NOTES: <1-2 sentence explanation of what this kernel does differently>"
+		"APPROACH_NOTES: <1-2 sentence explanation>"
 	)
 
 	sections.append(
@@ -66,12 +79,25 @@ def build_generate_prompt(
 	sections.append(f"## Strategy\n\nApply: {strategy_name}")
 
 	if prior_attempts:
-		lines = ["## Prior Attempts"]
+		lines = ["## Prior Attempts (LEARN FROM THESE)"]
 		for a in prior_attempts[-5:]:
-			status = "correct" if a.correct else "INCORRECT"
-			lines.append(
-				f"- {a.strategy_name}: {a.speedup:.2f}x ({status})"
-			)
+			if a.correct:
+				lines.append(
+					f"- {a.strategy_name}: {a.speedup:.2f}x (correct)"
+				)
+			else:
+				failure_info = ""
+				if a.failure_report:
+					ft = a.failure_report.failure_type.value
+					err = a.failure_report.error_output[:200]
+					failure_info = f" -- {ft}: {err}"
+				lines.append(
+					f"- {a.strategy_name}: FAILED{failure_info}"
+				)
+		lines.append(
+			"\nDo NOT repeat approaches that already failed. "
+			"Try a fundamentally different strategy."
+		)
 		sections.append("\n".join(lines))
 
 	if knowledge_context:
@@ -164,12 +190,25 @@ def build_suggest_strategies_prompt(
 		sections.append("\n".join(lines))
 
 	if prior_attempts:
-		lines = ["## Prior Attempts"]
+		lines = ["## Prior Attempts (LEARN FROM THESE)"]
 		for a in prior_attempts[-5:]:
-			status = "correct" if a.correct else "INCORRECT"
-			lines.append(
-				f"- {a.strategy_name}: {a.speedup:.2f}x ({status})"
-			)
+			if a.correct:
+				lines.append(
+					f"- {a.strategy_name}: {a.speedup:.2f}x (correct)"
+				)
+			else:
+				failure_info = ""
+				if a.failure_report:
+					ft = a.failure_report.failure_type.value
+					err = a.failure_report.error_output[:200]
+					failure_info = f" -- {ft}: {err}"
+				lines.append(
+					f"- {a.strategy_name}: FAILED{failure_info}"
+				)
+		lines.append(
+			"\nDo NOT repeat approaches that already failed. "
+			"Try a fundamentally different strategy."
+		)
 		sections.append("\n".join(lines))
 
 	return "\n\n".join(sections)
