@@ -440,7 +440,7 @@ class Orchestrator:
 			# Step 5: STRATEGIZE for next iteration
 			if diagnosis:
 				strategies = await self._db.get_strategies_for_bottleneck(
-					diagnosis.bottleneck_type.value
+					diagnosis.bottleneck_type
 				)
 				if strategies:
 					suggested = await self._agent.suggest_strategies(
