@@ -30,7 +30,7 @@ from kernel_forge.core.types import (
 	ProfileData,
 	RooflineAnalysis,
 )
-from kernel_forge.knowledge.classifier import classify_kernel
+from kernel_forge.knowledge.classifier import analyze_traits
 from kernel_forge.knowledge.db import KnowledgeDB
 from kernel_forge.knowledge.experience import ExperienceRecord, ExperienceStore
 from kernel_forge.knowledge.learnings import LearningsManager
@@ -312,59 +312,55 @@ class Orchestrator:
 				baseline_roofline.achieved_tflops, baseline_roofline.utilization_pct,
 			)
 
-		# Step 2: CLASSIFY + ANALYZE
-		classification = classify_kernel(
-			problem.name, problem.reference_source
+		# Step 2: ANALYZE traits + load experience (all advisory)
+		traits = analyze_traits(
+			problem.name,
+			problem.reference_source,
+			problem.input_shapes,
 		)
-		logger.info(
-			"[CLASSIFY] %s (confidence=%.1f, typical=%s)",
-			classification.kernel_class,
-			classification.confidence,
-			classification.typical_bottleneck,
-		)
+		logger.info("[TRAITS] %s", traits.summary())
 
-		# Query knowledge base using kernel CLASS, not name
+		# Query knowledge base using dominant ops
+		ops_str = ",".join(traits.dominant_ops) if traits.dominant_ops else ""
 		knowledge_ctx = await self._query.build_context(
 			kernel_problem=problem.name,
-			kernel_type=classification.kernel_class,
-			bottleneck_type=classification.typical_bottleneck,
+			kernel_type=ops_str,
+			bottleneck_type=traits.estimated_bottleneck,
 			max_tokens=4000,
 		)
 
-		# Add experience-based context from prior problems
-		experience_ctx = self._experience.build_context_for_class(
-			classification.kernel_class, max_tokens=4000
+		# Add experience from similar problems (advisory)
+		experience_ctx = self._experience.build_advisory_context(
+			traits, max_tokens=4000
 		)
 		if experience_ctx:
 			knowledge_ctx += "\n\n" + experience_ctx
-			logger.info(
-				"[EXPERIENCE] Loaded cross-problem context for %s",
-				classification.kernel_class,
-			)
+			logger.info("[EXPERIENCE] Loaded advisory context from similar problems")
 
-		# Initial strategy from classification or experience
+		# Initial strategy: suggest from experience or traits, agent decides
 		diagnosis: Diagnosis | None = None
-		pattern = self._experience.get_pattern(
-			classification.kernel_class
-		)
-		if pattern and pattern.best_strategies:
-			current_strategy = pattern.best_strategies[0]["name"]
+		similar = self._experience.find_similar(traits, limit=5)
+		successes = [
+			s for s in similar if s.record.outcome == "success"
+		]
+		if successes:
+			current_strategy = successes[0].record.strategy_name
 			logger.info(
-				"[STRATEGY] Starting with %s "
-				"(%.2fx avg from experience)",
+				"[STRATEGY] Suggesting %s (%.2fx on similar problem, "
+				"similarity=%.2f) -- agent may override",
 				current_strategy,
-				pattern.best_strategies[0]["avg_speedup"],
+				successes[0].record.speedup,
+				successes[0].similarity,
 			)
-		elif classification.typical_strategies:
-			current_strategy = classification.typical_strategies[0]
+		elif traits.suggested_strategies:
+			current_strategy = traits.suggested_strategies[0]
 			logger.info(
-				"[STRATEGY] Starting with %s "
-				"(typical for %s)",
+				"[STRATEGY] Suggesting %s (from trait analysis) "
+				"-- agent may override",
 				current_strategy,
-				classification.kernel_class,
 			)
 		else:
-			current_strategy = "tf32_tensor_cores"
+			current_strategy = "torch_compile_integration"
 
 		# === MAIN LOOP ===
 		while not state.should_stop:
@@ -484,31 +480,14 @@ class Orchestrator:
 				logger.info("[RESULT] FAILED%s", failure_desc)
 
 			# Step 4: DIAGNOSE for next iteration
-			# Diagnose after correct results; after failures, infer from failure type
+			# After failures, the failure info is already in prior_attempts
+			# context -- the agent will see it and adjust. No hardcoded fallbacks.
 			if not result.correct and result.failure:
-				ft = result.failure.failure_type
-				if ft == FailureType.CORRECTNESS_FAILURE:
-					logger.info(
-						"[DIAGNOSE] Correctness failure -- "
-						"switching strategy to avoid precision issues"
-					)
-					# Cycle through strategies that don't change precision
-					if current_strategy in (
-						"tf32_tensor_cores", "fp16_bf16_computation",
-						"fp8_quantization",
-					):
-						current_strategy = "torch_compile_integration"
-					elif current_strategy == "torch_compile_integration":
-						current_strategy = "kernel_fusion"
-					else:
-						current_strategy = "occupancy_tuning"
-				elif ft == FailureType.COMPILATION_ERROR:
-					logger.info(
-						"[DIAGNOSE] Compilation error -- "
-						"trying simpler approach"
-					)
-					current_strategy = "torch_compile_integration"
-				logger.info("[STRATEGIZE] Switching to: %s", current_strategy)
+				logger.info(
+					"[DIAGNOSE] %s -- agent will see failure "
+					"context and adjust strategy",
+					result.failure.failure_type.value,
+				)
 
 			if result.correct and result.optimized_ms > 0:
 				profile = ProfileData(
@@ -586,7 +565,7 @@ class Orchestrator:
 				root_cause = (
 					f"Strategy {attempt.strategy_name} achieved "
 					f"{attempt.speedup:.2f}x on "
-					f"{classification.kernel_class} problem"
+					f"{','.join(traits.dominant_ops)} problem"
 				)
 			elif attempt.correct:
 				outcome = "no_improvement"
@@ -600,7 +579,7 @@ class Orchestrator:
 
 			self._experience.record(ExperienceRecord(
 				problem_name=problem.name,
-				kernel_class=classification.kernel_class,
+				dominant_ops=traits.dominant_ops,
 				strategy_name=attempt.strategy_name,
 				approach_notes="",
 				outcome=outcome,
@@ -612,10 +591,14 @@ class Orchestrator:
 				),
 				bottleneck_type=(
 					diagnosis.bottleneck_type.value
-					if diagnosis else classification.typical_bottleneck
+					if diagnosis
+					else traits.estimated_bottleneck
 				),
 				roofline_utilization_pct=roofline_util,
 				root_cause=root_cause,
+				has_data_reuse=traits.has_data_reuse,
+				shape_category=traits.shape_category,
+				estimated_bottleneck=traits.estimated_bottleneck,
 				input_shapes=problem.input_shapes,
 				precision_constraint="fp32_strict",
 			))

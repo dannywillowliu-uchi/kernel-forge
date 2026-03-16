@@ -1,117 +1,138 @@
-"""Tests for kernel problem classifier."""
+"""Tests for kernel trait analysis."""
 
 from __future__ import annotations
 
-from kernel_forge.knowledge.classifier import classify_kernel
+from kernel_forge.knowledge.classifier import KernelTraits, analyze_traits
 
 
-class TestClassifyKernel:
-	def test_square_matmul(self) -> None:
-		r = classify_kernel("1_Square_matrix_multiplication_")
-		assert r.kernel_class == "matmul"
-		assert r.confidence > 0.5
+class TestAnalyzeTraits:
+	def test_matmul_ops(self) -> None:
+		t = analyze_traits("1_Square_matrix_multiplication_")
+		assert "matmul" in t.dominant_ops
 
-	def test_standard_matmul(self) -> None:
-		r = classify_kernel("2_Standard_matrix_multiplication_")
-		assert r.kernel_class == "matmul"
+	def test_matmul_compute_bound(self) -> None:
+		t = analyze_traits("1_Square_matrix_multiplication_")
+		assert t.estimated_bottleneck == "compute_bound"
 
-	def test_batched_matmul(self) -> None:
-		r = classify_kernel("3_Batched_matrix_multiplication")
-		assert r.kernel_class == "matmul"
+	def test_matmul_data_reuse(self) -> None:
+		t = analyze_traits("1_Square_matrix_multiplication_")
+		assert t.has_data_reuse is True
 
-	def test_matmul_with_transposed(self) -> None:
-		r = classify_kernel("16_Matmul_with_transposed_A")
-		assert r.kernel_class == "matmul"
+	def test_relu_elementwise(self) -> None:
+		t = analyze_traits("19_ReLU")
+		assert "elementwise" in t.dominant_ops
 
-	def test_matrix_vector(self) -> None:
-		r = classify_kernel("4_Matrix_vector_multiplication_")
-		assert r.kernel_class == "matmul"
+	def test_relu_memory_bound(self) -> None:
+		t = analyze_traits("19_ReLU")
+		assert t.estimated_bottleneck == "memory_bound"
 
-	def test_relu(self) -> None:
-		r = classify_kernel("19_ReLU")
-		assert r.kernel_class == "elementwise"
+	def test_softmax_reduction(self) -> None:
+		t = analyze_traits("23_Softmax")
+		assert "softmax" in t.dominant_ops or "reduction" in t.dominant_ops
 
-	def test_gelu(self) -> None:
-		r = classify_kernel("26_GELU_")
-		assert r.kernel_class == "elementwise"
+	def test_conv_ops(self) -> None:
+		t = analyze_traits("67_conv_standard_1D")
+		assert "conv" in t.dominant_ops
 
-	def test_sigmoid(self) -> None:
-		r = classify_kernel("21_Sigmoid")
-		assert r.kernel_class == "elementwise"
-
-	def test_softmax(self) -> None:
-		r = classify_kernel("23_Softmax")
-		assert r.kernel_class == "reduction"
-
-	def test_logsoftmax(self) -> None:
-		r = classify_kernel("24_LogSoftmax")
-		assert r.kernel_class == "reduction"
-
-	def test_frobenius_norm(self) -> None:
-		r = classify_kernel("37_FrobeniusNorm_")
-		assert r.kernel_class == "reduction"
-
-	def test_sum_reduction(self) -> None:
-		r = classify_kernel("47_Sum_reduction_over_a_dimension")
-		assert r.kernel_class == "reduction"
-
-	def test_conv_1d(self) -> None:
-		r = classify_kernel("67_conv_standard_1D")
-		assert r.kernel_class == "conv"
-
-	def test_conv_2d(self) -> None:
-		r = classify_kernel(
-			"70_conv_standard_2D__square_input__square_kernel"
+	def test_attention_composite(self) -> None:
+		t = analyze_traits(
+			"44_ScaledDotProductAttention",
+			"torch.nn.functional.scaled_dot_product_attention(q, k, v)",
 		)
-		assert r.kernel_class == "conv"
+		assert "attention" in t.dominant_ops
 
-	def test_conv_transpose(self) -> None:
-		r = classify_kernel(
-			"80_conv_transpose_2D__square_input__square_kernel"
+	def test_norm_ops(self) -> None:
+		t = analyze_traits(
+			"33_BatchNorm",
+			"self.bn = nn.BatchNorm2d(num_features)",
 		)
-		assert r.kernel_class == "conv"
+		assert "norm" in t.dominant_ops
 
-	def test_batchnorm(self) -> None:
-		r = classify_kernel("33_BatchNorm")
-		assert r.kernel_class == "norm"
+	def test_loss_ops(self) -> None:
+		t = analyze_traits("100_HingeLoss")
+		assert "loss" in t.dominant_ops
 
-	def test_layernorm(self) -> None:
-		r = classify_kernel("40_LayerNorm")
-		assert r.kernel_class == "norm"
+	def test_shape_analysis_large(self) -> None:
+		t = analyze_traits(
+			"test",
+			"",
+			{"input_0": [4096, 4096]},
+		)
+		assert t.shape_category == "large"
+		assert t.shape_aspect == "square"
 
-	def test_rmsnorm(self) -> None:
-		r = classify_kernel("36_RMSNorm_")
-		assert r.kernel_class == "norm"
+	def test_shape_analysis_small(self) -> None:
+		t = analyze_traits(
+			"test",
+			"",
+			{"input_0": [32, 32]},
+		)
+		assert t.shape_category == "small"
 
-	def test_hinge_loss(self) -> None:
-		r = classify_kernel("100_HingeLoss")
-		assert r.kernel_class == "loss"
+	def test_composite_detection(self) -> None:
+		# Source has both matmul and softmax
+		t = analyze_traits(
+			"test_fused_attention",
+			"x = torch.matmul(q, k); x = F.softmax(x); out = torch.matmul(x, v)",
+		)
+		assert t.is_composite is True
+		assert len(t.dominant_ops) >= 2
 
-	def test_cross_entropy(self) -> None:
-		r = classify_kernel("95_CrossEntropyLoss")
-		assert r.kernel_class == "loss"
+	def test_suggestions_advisory(self) -> None:
+		t = analyze_traits("1_Square_matrix_multiplication_")
+		assert len(t.suggested_strategies) > 0
+		# These are suggestions, they exist but don't control anything
 
-	def test_max_pooling(self) -> None:
-		r = classify_kernel("42_Max_Pooling_2D")
-		assert r.kernel_class == "pooling"
+	def test_unknown_problem(self) -> None:
+		t = analyze_traits("999_SomeRandomThing")
+		assert t.confidence < 0.5
 
-	def test_attention(self) -> None:
-		r = classify_kernel("44_ScaledDotProductAttention")
-		assert r.kernel_class == "attention"
 
-	def test_typical_bottleneck_matmul(self) -> None:
-		r = classify_kernel("1_Square_matrix_multiplication_")
-		assert r.typical_bottleneck == "compute_bound"
+class TestTraitSimilarity:
+	def test_identical_traits(self) -> None:
+		t = KernelTraits(
+			dominant_ops=["matmul"],
+			estimated_bottleneck="compute_bound",
+			has_data_reuse=True,
+			shape_category="large",
+		)
+		assert t.similarity(t) > 0.9
 
-	def test_typical_bottleneck_elementwise(self) -> None:
-		r = classify_kernel("19_ReLU")
-		assert r.typical_bottleneck == "memory_bound"
+	def test_same_ops_different_shape(self) -> None:
+		t1 = KernelTraits(
+			dominant_ops=["matmul"],
+			estimated_bottleneck="compute_bound",
+			has_data_reuse=True,
+			shape_category="large",
+		)
+		t2 = KernelTraits(
+			dominant_ops=["matmul"],
+			estimated_bottleneck="compute_bound",
+			has_data_reuse=True,
+			shape_category="small",
+		)
+		sim = t1.similarity(t2)
+		assert sim > 0.7  # mostly similar
 
-	def test_typical_strategies_matmul(self) -> None:
-		r = classify_kernel("1_Square_matrix_multiplication_")
-		assert "tf32_tensor_cores" in r.typical_strategies
+	def test_different_ops(self) -> None:
+		t1 = KernelTraits(
+			dominant_ops=["matmul"],
+			estimated_bottleneck="compute_bound",
+		)
+		t2 = KernelTraits(
+			dominant_ops=["elementwise"],
+			estimated_bottleneck="memory_bound",
+		)
+		sim = t1.similarity(t2)
+		assert sim < 0.3  # quite different
 
-	def test_unknown_fallback(self) -> None:
-		r = classify_kernel("999_SomeRandomOp")
-		assert r.kernel_class == "unknown"
-		assert r.confidence == 0.0
+	def test_partial_op_overlap(self) -> None:
+		t1 = KernelTraits(
+			dominant_ops=["matmul", "softmax"],
+		)
+		t2 = KernelTraits(
+			dominant_ops=["matmul", "elementwise"],
+		)
+		sim = t1.similarity(t2)
+		# Partial overlap -- should be moderate
+		assert 0.2 < sim < 0.8
