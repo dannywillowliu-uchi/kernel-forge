@@ -90,21 +90,42 @@ class ClaudeCodeAgent:
 		return self._parse_result(output, problem_name)
 
 	async def _invoke(self, prompt: str) -> str:
-		"""Run Claude Code CLI with tools enabled."""
+		"""Run Claude Code CLI with tools enabled.
+
+		Writes the prompt to a temp file and passes via -p to avoid
+		shell argument length limits and reduce prompt processing time.
+		"""
+		import os
+		import tempfile
+
+		# Write prompt to temp file
+		with tempfile.NamedTemporaryFile(
+			mode="w", suffix=".md", delete=False, prefix="forge_prompt_"
+		) as f:
+			f.write(prompt)
+			prompt_file = f.name
+
+		# Use a concise -p that references the file
+		short_prompt = (
+			f"Read the task file at {prompt_file} and execute it. "
+			f"Follow the methodology exactly. Output BEST_KERNEL_PATH, "
+			f"BEST_SPEEDUP, APPROACH when done."
+		)
+
 		cmd = [
 			"claude",
 			"--permission-mode", "bypassPermissions",
 			"--max-turns", str(self._max_turns),
 			"--output-format", "text",
 			"--model", self._model,
-			"-p", prompt,
+			"-p", short_prompt,
 		]
 		logger.info(
 			"Invoking Claude agent (model=%s, max_turns=%d)",
 			self._model, self._max_turns,
 		)
 
-		timeout_s = 600 if self._model == "opus" else 300
+		timeout_s = 900  # 15 minutes for full optimization run
 
 		proc = await asyncio.create_subprocess_exec(
 			*cmd,
@@ -124,6 +145,8 @@ class ClaudeCodeAgent:
 			except ProcessLookupError:
 				pass
 			return ""
+		finally:
+			os.unlink(prompt_file)
 
 		stdout = stdout_bytes.decode("utf-8", errors="replace")
 		stderr = stderr_bytes.decode("utf-8", errors="replace")
