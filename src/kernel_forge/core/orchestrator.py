@@ -7,6 +7,7 @@ benchmark -> evaluate loop until convergence or budget exhaustion.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -82,11 +83,28 @@ class Orchestrator:
 			memory_threshold_mib=config.hardware.gpu_memory_threshold_mib,
 		)
 
-	async def _check_gpu(self) -> bool:
-		status = await self._gpu_guard.check()
-		if not status.available:
-			logger.error("GPU %d unavailable: %s", self._config.hardware.gpu_id, status.message)
-		return status.available
+	async def _check_gpu(self, retries: int = 3, wait_secs: int = 30) -> bool:
+		for attempt in range(retries):
+			status = await self._gpu_guard.check()
+			if status.available:
+				return True
+			if attempt < retries - 1:
+				logger.warning(
+					"GPU %d busy (%d MiB), waiting %ds... (%d/%d)",
+					self._config.hardware.gpu_id,
+					status.memory_used_mib,
+					wait_secs,
+					attempt + 1,
+					retries,
+				)
+				await asyncio.sleep(wait_secs)
+		logger.error(
+			"GPU %d unavailable after %d retries: %s",
+			self._config.hardware.gpu_id,
+			retries,
+			status.message,
+		)
+		return False
 
 	def _problem_path(self, problem: KernelProblem) -> str:
 		level = problem.difficulty_level or 1

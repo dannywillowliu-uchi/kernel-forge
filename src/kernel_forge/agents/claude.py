@@ -25,7 +25,7 @@ from kernel_forge.core.types import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "sonnet"
+DEFAULT_MODEL = "opus"
 DEFAULT_MAX_TURNS = 1
 
 

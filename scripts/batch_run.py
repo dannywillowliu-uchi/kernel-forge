@@ -52,7 +52,7 @@ async def run_batch(
 
 	learnings = LearningsManager(config.knowledge_dir)
 	query = KnowledgeQuery(db, learnings)
-	agent = ClaudeCodeAgent(model="haiku")
+	agent = ClaudeCodeAgent(model="opus")
 	adapter = KernelBenchAdapter(config.knowledge_dir / "kernelbench")
 
 	results: list[dict] = []
@@ -180,17 +180,31 @@ if __name__ == "__main__":
 	parser.add_argument("--goal", default="latency")
 	args = parser.parse_args()
 
+	adapter = KernelBenchAdapter(Path("knowledge/kernelbench"))
+	all_problems = adapter.list_problems(difficulty=args.level)
+	all_names = {p.name for p in all_problems}
+
 	if args.problems:
-		names = [n.strip() for n in args.problems.split(",")]
+		raw_names = [n.strip() for n in args.problems.split(",")]
+		# Validate names against actual problem list
+		names = []
+		for n in raw_names:
+			if n in all_names:
+				names.append(n)
+			else:
+				# Try fuzzy match (prefix)
+				matches = [p for p in all_names if p.startswith(n)]
+				if len(matches) == 1:
+					names.append(matches[0])
+					print(f"  Resolved '{n}' -> '{matches[0]}'")
+				else:
+					print(f"  WARNING: '{n}' not found in L{args.level}")
 	else:
-		adapter = KernelBenchAdapter(Path("knowledge/kernelbench"))
-		problems = adapter.list_problems(difficulty=args.level)
 		if args.all:
-			names = [p.name for p in problems]
+			names = [p.name for p in all_problems]
 		else:
-			# Pick a diverse sample
-			step = max(1, len(problems) // args.count)
-			names = [p.name for p in problems[::step]][:args.count]
+			step = max(1, len(all_problems) // args.count)
+			names = [p.name for p in all_problems[::step]][:args.count]
 
 	print(f"Running {len(names)} problems with max {args.max_attempts} attempts each")
 	print(f"Problems: {names}")

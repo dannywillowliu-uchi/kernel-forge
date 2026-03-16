@@ -120,7 +120,7 @@ async def _run_optimize(
 	query = KnowledgeQuery(db, learnings)
 
 	# Agent
-	agent = ClaudeCodeAgent(model="sonnet")
+	agent = ClaudeCodeAgent(model="opus")
 
 	# Load problem from KernelBench if available, else create stub
 	from kernel_forge.harness.kernelbench import KernelBenchAdapter
