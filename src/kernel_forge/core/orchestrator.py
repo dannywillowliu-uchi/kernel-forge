@@ -503,13 +503,32 @@ class Orchestrator:
 		}
 		(run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
 
-		# Record learnings
-		if state.best_speedup > 1.0 and state.best_kernel_source:
+		# Record learnings -- specific, actionable, with failure context
+		if state.best_speedup > 1.0:
+			# What worked
+			winning = [
+				a for a in state.attempts if a.correct and a.speedup > 1.0
+			]
+			if winning:
+				best = max(winning, key=lambda a: a.speedup)
+				self._learnings.write(
+					"insights",
+					f"Problem {problem.name}: {state.best_speedup:.2f}x "
+					f"speedup via strategy '{best.strategy_name}'. "
+					f"Tried {state.attempt_count} approaches total. "
+					f"Kernel type: {problem.name.split('_')[0]}.",
+					problem.name,
+				)
+
+		# Record failures as gotchas
+		failures = [a for a in state.attempts if not a.correct and a.failure_report]
+		for fail in failures:
+			ft = fail.failure_report.failure_type.value
+			err_short = fail.failure_report.error_output[:150]
 			self._learnings.write(
-				"insights",
-				f"Problem {problem.name}: achieved {state.best_speedup:.2f}x speedup "
-				f"in {state.attempt_count} attempts. "
-				f"Best strategy landed on after trying {state.attempt_count} approaches.",
+				"gotchas",
+				f"Problem {problem.name}: strategy '{fail.strategy_name}' "
+				f"failed with {ft}. Error: {err_short}",
 				problem.name,
 			)
 

@@ -22,3 +22,11 @@ Problem 1_Square_matrix_multiplication_: achieved 1.00x speedup in 5 attempts. B
 ## [2026-03-16 06:51:43 UTC] (ref: 1_Square_matrix_multiplication_)
 
 Problem 1_Square_matrix_multiplication_: achieved 12.66x speedup in 5 attempts. Best strategy landed on after trying 5 approaches.
+
+## [2026-03-16 07:10:01 UTC] (ref: 1_Square_matrix_multiplication_)
+
+Problem 1_Square_matrix_multiplication_: achieved 12.65x speedup in 3 attempts. Best strategy landed on after trying 3 approaches.
+
+## [2026-03-16 07:14:56 UTC] (ref: 2_Standard_matrix_multiplication_)
+
+Problem 2_Standard_matrix_multiplication_: achieved 13.10x speedup in 3 attempts. Best strategy landed on after trying 3 approaches.
