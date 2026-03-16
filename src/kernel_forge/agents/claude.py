@@ -57,12 +57,13 @@ class ClaudeCodeAgent:
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.PIPE,
 		)
+		timeout_s = 300 if self._model == "opus" else 120
 		try:
 			stdout_bytes, stderr_bytes = await asyncio.wait_for(
-				proc.communicate(), timeout=120
+				proc.communicate(), timeout=timeout_s
 			)
 		except asyncio.TimeoutError:
-			logger.warning("Claude CLI timed out after 120s")
+			logger.warning("Claude CLI timed out after %ds", timeout_s)
 			try:
 				proc.kill()
 			except ProcessLookupError:
