@@ -34,3 +34,19 @@ Problem 2_Standard_matrix_multiplication_: achieved 13.10x speedup in 3 attempts
 ## [2026-03-16 07:24:43 UTC] (ref: 19_ReLU)
 
 Problem 19_ReLU: achieved 1.01x speedup in 3 attempts. Best strategy landed on after trying 3 approaches.
+
+## [2026-03-16 08:43:08 UTC] (ref: 1_Square_matrix_multiplication_)
+
+Problem 1_Square_matrix_multiplication_: 12.62x speedup via strategy 'tf32_tensor_cores'. Tried 3 approaches total. Kernel type: 1.
+
+## [2026-03-16 08:49:33 UTC] (ref: 19_ReLU)
+
+Problem 19_ReLU: 1.01x speedup via strategy 'tf32_tensor_cores'. Tried 3 approaches total. Kernel type: 19.
+
+## [2026-03-16 08:54:01 UTC] (ref: 23_Softmax)
+
+Problem 23_Softmax: 1.00x speedup via strategy 'tf32_tensor_cores'. Tried 3 approaches total. Kernel type: 23.
+
+## [2026-03-16 08:59:23 UTC] (ref: 26_GELU_)
+
+Problem 26_GELU_: 1.05x speedup via strategy 'tf32_tensor_cores'. Tried 3 approaches total. Kernel type: 26.

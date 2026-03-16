@@ -17,3 +17,34 @@ torch.compile mode="reduce-overhead" (CUDA graph trees) fails when KV cache uses
 
 ## [2026-03-15 01:00] cuda_graph_kv_cache
 Manual CUDA graph capture requires replacing .copy_() with .scatter_() for KV cache writes (scatter uses static destination tensor address). Also requires passing full-length cache + boolean mask instead of dynamically sliced cache[:, :, :kv_len, :]. This combination of compile + manual CUDA graph gave +39% over compile alone.
+
+## [2026-03-16 08:43:08 UTC] (ref: 1_Square_matrix_multiplication_)
+
+Problem 1_Square_matrix_multiplication_: strategy 'shared_memory_tiling' failed with correctness_failure. Error: Traceback (most recent call last):
+  File "/home/danny/kernel-forge-workspace/harness/forge_harness.py", line 120, in <module>
+    cmd_test(args)
+  Fi
+
+## [2026-03-16 08:54:01 UTC] (ref: 23_Softmax)
+
+Problem 23_Softmax: strategy 'online_softmax' failed with correctness_failure. Error: Traceback (most recent call last):
+  File "/home/danny/kernel-forge-workspace/harness/forge_harness.py", line 120, in <module>
+    cmd_test(args)
+  Fi
+
+## [2026-03-16 08:54:01 UTC] (ref: 23_Softmax)
+
+Problem 23_Softmax: strategy 'Shared Memory Tiling with Fused Reductions' failed with correctness_failure. Error: Traceback (most recent call last):
+  File "/home/danny/kernel-forge-workspace/harness/forge_harness.py", line 120, in <module>
+    cmd_test(args)
+  Fi
+
+## [2026-03-16 08:59:23 UTC] (ref: 26_GELU_)
+
+Problem 26_GELU_: strategy 'vectorized_loads_stores' failed with compilation_error. Error: Traceback (most recent call last):
+  File "/home/danny/.local/lib/python3.12/site-packages/torch/utils/cpp_extension.py", line 2693, in _run_ninja_bui
+
+## [2026-03-16 09:08:39 UTC] (ref: 37_FrobeniusNorm_)
+
+Problem 37_FrobeniusNorm_: strategy 'Kernel Fusion with Streaming' failed with timeout. Error: Command timed out after 300s
+
