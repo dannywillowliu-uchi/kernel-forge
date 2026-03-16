@@ -23,7 +23,7 @@ class TestHardwareConfig:
 		assert hw.remote_workspace == "~/kernel-forge-workspace"
 		assert hw.gpu_check_interval_seconds == 300
 		assert hw.command_timeout_seconds == 300
-		assert hw.gpu_memory_threshold_mib == 100
+		assert hw.gpu_memory_threshold_mib == 2048
 
 	def test_wrap_remote_command(self) -> None:
 		hw = HardwareConfig()

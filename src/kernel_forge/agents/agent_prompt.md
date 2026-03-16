@@ -81,6 +81,19 @@ For custom CUDA: use `torch.utils.cpp_extension.load_inline()`. Note: this takes
 - `.reshape()` breaks CUDA graph capture (use `.contiguous().view()`)
 - `torch.compile(mode="reduce-overhead")` fails with KV cache `.copy_()` mutations
 
+## Reporting Tool/Capability Gaps
+
+If you identify a tool, library, or capability that would help you optimize further but you don't have access to, **report it explicitly**. This feedback drives what we build next.
+
+Examples:
+- "TOOL_REQUEST: ncu with --set full for detailed warp stall analysis"
+- "TOOL_REQUEST: CUTLASS 3.x installed for sm100 GEMM kernels"
+- "TOOL_REQUEST: Triton nightly for head_dim > 256 FlashAttention"
+- "TOOL_REQUEST: nsys for end-to-end timeline profiling"
+- "TOOL_REQUEST: ability to read/modify the benchmark harness"
+
+Don't silently work around limitations. Tell me what would help.
+
 ## Output Format
 
 When you've found your best kernel, output:
@@ -88,4 +101,7 @@ When you've found your best kernel, output:
 BEST_KERNEL_PATH: kernels/<filename>.py
 BEST_SPEEDUP: <N>x
 APPROACH: <1-2 sentence summary>
+WHY_IT_WORKED: <roofline position, what bottleneck was addressed>
+WHAT_FAILED: <approaches that didn't work and why>
+TOOL_REQUESTS: <any tools/capabilities you wish you had>
 ```

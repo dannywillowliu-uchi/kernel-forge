@@ -145,8 +145,21 @@ class Orchestrator:
 				agent_result.speedup,
 				agent_result.approach,
 			)
+			if agent_result.why_it_worked:
+				logger.info("[WHY] %s", agent_result.why_it_worked)
 		else:
 			logger.info("[RESULT] No speedup achieved")
+
+		# Log tool requests from the agent
+		if agent_result.tool_requests:
+			logger.info("[TOOL REQUESTS] Agent wants:")
+			for req in agent_result.tool_requests:
+				logger.info("  -> %s", req)
+			# Persist tool requests for review
+			requests_file = run_dir / "tool_requests.txt"
+			requests_file.write_text(
+				"\n".join(agent_result.tool_requests)
+			)
 
 		# Record experience
 		self._experience.record(ExperienceRecord(

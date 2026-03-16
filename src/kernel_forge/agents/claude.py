@@ -186,10 +186,25 @@ class ClaudeCodeAgent:
 			if approach_match else ""
 		)
 
+		# Parse extended fields
+		why_match = re.search(r"WHY_IT_WORKED:\s*(.+)", output)
+		failed_match = re.search(r"WHAT_FAILED:\s*(.+)", output)
+		# Find inline TOOL_REQUEST: lines throughout output
+		tool_requests = re.findall(
+			r"TOOL_REQUEST:\s*(.+)", output
+		)
+
 		return AgentResult(
 			kernel_path=kernel_path,
 			speedup=speedup,
 			approach=approach,
+			why_it_worked=(
+				why_match.group(1).strip() if why_match else ""
+			),
+			what_failed=(
+				failed_match.group(1).strip() if failed_match else ""
+			),
+			tool_requests=tool_requests,
 			raw_output=output,
 			success=speedup > 1.0,
 		)
@@ -203,11 +218,17 @@ class AgentResult:
 		kernel_path: str = "",
 		speedup: float = 0.0,
 		approach: str = "",
+		why_it_worked: str = "",
+		what_failed: str = "",
+		tool_requests: list[str] | None = None,
 		raw_output: str = "",
 		success: bool = False,
 	) -> None:
 		self.kernel_path = kernel_path
 		self.speedup = speedup
 		self.approach = approach
+		self.why_it_worked = why_it_worked
+		self.what_failed = what_failed
+		self.tool_requests = tool_requests or []
 		self.raw_output = raw_output
 		self.success = success
