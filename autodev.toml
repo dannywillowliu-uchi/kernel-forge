@@ -1,0 +1,10 @@
+[target]
+name = "kernel-forge"
+path = "."
+
+[target.verification]
+command = "uv run pytest tests/ -v && uv run ruff check src/ tests/"
+
+[swarm]
+max_workers = 3
+planner_cooldown = 60
