@@ -61,6 +61,7 @@ def parse_strategies_from_markdown(file_path: Path) -> list[Strategy]:
 			description = desc_text.strip()
 
 		strategies.append(Strategy(
+			id=name,
 			name=name,
 			category=category,
 			description=description,

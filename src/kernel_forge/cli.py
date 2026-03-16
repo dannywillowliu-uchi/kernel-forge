@@ -122,14 +122,20 @@ async def _run_optimize(
 	# Agent
 	agent = ClaudeCodeAgent(model="sonnet")
 
-	# Build problem
-	problem = KernelProblem(
-		name=problem_name,
-		reference_source="",
-		input_shapes={},
-		benchmark_suite="kernelbench",
-		difficulty_level=difficulty or 1,
-	)
+	# Load problem from KernelBench if available, else create stub
+	from kernel_forge.harness.kernelbench import KernelBenchAdapter
+	adapter = KernelBenchAdapter(config.knowledge_dir / "kernelbench")
+	problem = adapter.get_problem(problem_name)
+	if problem is None:
+		problem = KernelProblem(
+			name=problem_name,
+			reference_source="",
+			input_shapes={},
+			benchmark_suite="kernelbench",
+			difficulty_level=difficulty or 1,
+		)
+	if difficulty is not None:
+		problem.difficulty_level = difficulty
 
 	opt_goal = OptimizationGoal(primary=goal)
 

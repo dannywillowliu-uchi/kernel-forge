@@ -120,6 +120,7 @@ class Orchestrator:
 		problem: KernelProblem,
 		kernel_source: str,
 		attempt_num: int,
+		baseline_ms: float = 0.0,
 	) -> AttemptResult:
 		"""Upload kernel, validate correctness, benchmark if correct."""
 		kernel_path = self._kernel_path(problem, attempt_num)
@@ -157,8 +158,9 @@ class Orchestrator:
 			)
 
 		# Run test (correctness + benchmark)
+		baseline_arg = f" --baseline-ms {baseline_ms}" if baseline_ms > 0 else ""
 		test_result = await self._run_harness(
-			f"test {prob_path} {kernel_path}",
+			f"test {prob_path} {kernel_path}{baseline_arg}",
 			timeout=self._config.hardware.command_timeout_seconds,
 		)
 
@@ -343,7 +345,9 @@ class Orchestrator:
 				logger.error("GPU became unavailable mid-run")
 				break
 
-			result = await self.test_kernel(problem, candidate.source, attempt_num)
+			result = await self.test_kernel(
+				problem, candidate.source, attempt_num, baseline_ms=baseline_ms
+			)
 			result.strategy_name = current_strategy
 			result.approach_notes = candidate.approach_notes
 

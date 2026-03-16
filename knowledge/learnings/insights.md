@@ -14,3 +14,7 @@ B200 has massive compute capacity. At batch=1, a ~350M parameter model heavily u
 
 ## [2026-03-16 04:00] matmul_4096_kernelbench_l1
 KernelBench L1 problem 1 (4096x4096 FP32 matmul): baseline uses cuBLAS but does NOT enable TF32. Enabling TF32 via torch.backends.cuda.matmul.allow_tf32=True gives 9.5x speedup (2.16ms -> 0.23ms) while passing torch.allclose(rtol=1e-3, atol=1e-3). TF32 uses 10-bit mantissa which is sufficient for 1e-3 tolerance. Pure BF16 (7-bit mantissa) FAILS correctness at this scale (max_diff=4.17). A naive 32x32 tiled FP32 CUDA kernel was 6x SLOWER than cuBLAS baseline. The agent must recognize when the baseline is already using an optimized library -- the win is configuration (TF32), not a custom kernel.
+
+## [2026-03-16 05:37:13 UTC] (ref: 1_Square_matrix_multiplication_)
+
+Problem 1_Square_matrix_multiplication_: achieved 1.00x speedup in 5 attempts. Best strategy landed on after trying 5 approaches.
