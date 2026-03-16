@@ -54,3 +54,15 @@ Problem 26_GELU_: 1.05x speedup via strategy 'tf32_tensor_cores'. Tried 3 approa
 ## [2026-03-16 14:32:42 UTC] (ref: 100_HingeLoss)
 
 Problem 100_HingeLoss: 2.46x speedup via strategy 'tf32_tensor_cores'. Tried 3 approaches total. Kernel type: 100.
+
+## [2026-03-16 19:00] elementwise_bandwidth_ceiling
+KernelBench L1 elementwise ops (ReLU, Sigmoid, Tanh, GELU) on B200 with 4096x393216 FP32 tensors: both PyTorch native and custom Triton kernels achieve ~3.2 TB/s effective HBM bandwidth. This is the bandwidth ceiling. Custom kernels cannot exceed it. The ONLY win on isolated memory-bound ops is kernel FUSION (Swish: 2.50x by replacing 2-kernel x*sigmoid(x) with 1-kernel F.silu).
+
+## [2026-03-16 19:00] b200_clock_variance
+B200 GPU shows significant clock state variation between process invocations (baselines range 1.86ms to 4.03ms at different times). In-process measurements are stable. Always use --baseline-ms with in-process measurement for accurate speedup comparison.
+
+## [2026-03-16 19:00] transposed_matmul_contiguous
+Removing .contiguous() on transposed matmul inputs gives ~5x extra speedup (10.4x -> 15.3x). cuBLAS handles transposes natively via transa/transb flags. The contiguous copy is pure overhead.
+
+## [2026-03-16 19:00] irregular_shape_padding
+Padding irregular matrix dimensions to multiples of 128 before matmul boosted speedup from 2.1x to 8.9x on problem 8 (8205x2949x5921). Tensor cores work on fixed tiles; irregular shapes waste computation at boundaries.
