@@ -190,6 +190,10 @@ def parse_kernel_output(raw: str) -> KernelCandidate | None:
 		return None
 
 	source = source_match.group(1).strip()
+	# Strip markdown code fences if agent wrapped output in them
+	source = re.sub(r"^```\w*\n?", "", source)
+	source = re.sub(r"\n?```$", "", source)
+	source = source.strip()
 	if not source:
 		return None
 

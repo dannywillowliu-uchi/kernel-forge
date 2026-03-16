@@ -54,6 +54,11 @@ class LoopState:
 		)
 
 	@property
+	def elapsed_seconds(self) -> float:
+		"""Seconds since loop started."""
+		return time.time() - self.start_time
+
+	@property
 	def should_escalate(self) -> bool:
 		"""Check if profiling should be escalated to ncu."""
 		return should_escalate_profiling(

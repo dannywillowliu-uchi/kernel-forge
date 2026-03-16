@@ -125,19 +125,32 @@ class Orchestrator:
 		kernel_path = self._kernel_path(problem, attempt_num)
 		prob_path = self._problem_path(problem)
 
-		# Upload kernel source to remote
-		write_cmd = (
-			f"mkdir -p {KERNELS_DIR} && "
-			f"cat > {kernel_path} << 'KERNEL_EOF'\n"
-			f"{kernel_source}\n"
-			f"KERNEL_EOF"
-		)
-		write_result = await self._executor.run(write_cmd)
-		if not write_result.success:
+		# Upload kernel source to remote via temp file + rsync
+		import tempfile
+		with tempfile.NamedTemporaryFile(
+			mode="w", suffix=".py", delete=False
+		) as tmp:
+			tmp.write(kernel_source)
+			tmp_path = tmp.name
+
+		# Ensure remote dir exists
+		await self._executor.run(f"mkdir -p {KERNELS_DIR}")
+
+		# Upload
+		remote_path = f"{self._config.hardware.remote_workspace}/{kernel_path}"
+		await self._executor.upload(tmp_path, remote_path)
+
+		# Cleanup local temp
+		import os
+		os.unlink(tmp_path)
+
+		# Verify upload
+		verify = await self._executor.run(f"test -f {kernel_path} && echo ok")
+		if "ok" not in verify.stdout:
 			return AttemptResult(
 				failure=FailureReport(
 					failure_type=FailureType.COMPILATION_ERROR,
-					error_output=write_result.stderr,
+					error_output="Failed to upload kernel to remote",
 					kernel_source=kernel_source,
 					strategy_name="",
 				)
