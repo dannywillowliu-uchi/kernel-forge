@@ -6,3 +6,6 @@ dist/
 .venv/
 *.db
 runs/
+knowledge/kernelbench_repo/
+knowledge/kernelbench_repo
+knowledge/kernelbench
