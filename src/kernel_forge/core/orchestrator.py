@@ -30,7 +30,9 @@ from kernel_forge.core.types import (
 	ProfileData,
 	RooflineAnalysis,
 )
+from kernel_forge.knowledge.classifier import classify_kernel
 from kernel_forge.knowledge.db import KnowledgeDB
+from kernel_forge.knowledge.experience import ExperienceRecord, ExperienceStore
 from kernel_forge.knowledge.learnings import LearningsManager
 from kernel_forge.knowledge.query import KnowledgeQuery
 from kernel_forge.remote.executor import CommandResult, Executor
@@ -70,6 +72,7 @@ class Orchestrator:
 		query: KnowledgeQuery,
 		config: ForgeConfig,
 		agent: ClaudeCodeAgent | None = None,
+		experience: ExperienceStore | None = None,
 	) -> None:
 		self._executor = executor
 		self._db = db
@@ -77,6 +80,9 @@ class Orchestrator:
 		self._query = query
 		self._config = config
 		self._agent = agent or ClaudeCodeAgent()
+		self._experience = experience or ExperienceStore(
+			config.knowledge_dir / "experience"
+		)
 		self._gpu_guard = GpuGuard(
 			executor,
 			gpu_id=config.hardware.gpu_id,
@@ -306,18 +312,59 @@ class Orchestrator:
 				baseline_roofline.achieved_tflops, baseline_roofline.utilization_pct,
 			)
 
-		# Step 2: ANALYZE -- query knowledge base
-		kernel_type = problem.name.split("_")[0] if "_" in problem.name else problem.name
-		knowledge_ctx = await self._query.build_context(
-			kernel_problem=problem.name,
-			kernel_type=kernel_type,
-			bottleneck_type="",
-			max_tokens=8000,
+		# Step 2: CLASSIFY + ANALYZE
+		classification = classify_kernel(
+			problem.name, problem.reference_source
+		)
+		logger.info(
+			"[CLASSIFY] %s (confidence=%.1f, typical=%s)",
+			classification.kernel_class,
+			classification.confidence,
+			classification.typical_bottleneck,
 		)
 
-		# Initial diagnosis (before any profiling, infer from problem)
+		# Query knowledge base using kernel CLASS, not name
+		knowledge_ctx = await self._query.build_context(
+			kernel_problem=problem.name,
+			kernel_type=classification.kernel_class,
+			bottleneck_type=classification.typical_bottleneck,
+			max_tokens=4000,
+		)
+
+		# Add experience-based context from prior problems
+		experience_ctx = self._experience.build_context_for_class(
+			classification.kernel_class, max_tokens=4000
+		)
+		if experience_ctx:
+			knowledge_ctx += "\n\n" + experience_ctx
+			logger.info(
+				"[EXPERIENCE] Loaded cross-problem context for %s",
+				classification.kernel_class,
+			)
+
+		# Initial strategy from classification or experience
 		diagnosis: Diagnosis | None = None
-		current_strategy = "tf32_tensor_cores"  # default first strategy
+		pattern = self._experience.get_pattern(
+			classification.kernel_class
+		)
+		if pattern and pattern.best_strategies:
+			current_strategy = pattern.best_strategies[0]["name"]
+			logger.info(
+				"[STRATEGY] Starting with %s "
+				"(%.2fx avg from experience)",
+				current_strategy,
+				pattern.best_strategies[0]["avg_speedup"],
+			)
+		elif classification.typical_strategies:
+			current_strategy = classification.typical_strategies[0]
+			logger.info(
+				"[STRATEGY] Starting with %s "
+				"(typical for %s)",
+				current_strategy,
+				classification.kernel_class,
+			)
+		else:
+			current_strategy = "tf32_tensor_cores"
 
 		# === MAIN LOOP ===
 		while not state.should_stop:
@@ -521,33 +568,56 @@ class Orchestrator:
 		}
 		(run_dir / "summary.json").write_text(json.dumps(summary, indent=2))
 
-		# Record learnings -- specific, actionable, with failure context
-		if state.best_speedup > 1.0:
-			# What worked
-			winning = [
-				a for a in state.attempts if a.correct and a.speedup > 1.0
-			]
-			if winning:
-				best = max(winning, key=lambda a: a.speedup)
-				self._learnings.write(
-					"insights",
-					f"Problem {problem.name}: {state.best_speedup:.2f}x "
-					f"speedup via strategy '{best.strategy_name}'. "
-					f"Tried {state.attempt_count} approaches total. "
-					f"Kernel type: {problem.name.split('_')[0]}.",
-					problem.name,
-				)
+		# Record structured experience for EVERY attempt
+		for attempt in state.attempts:
+			roofline_util = 0.0
+			if attempt.correct and flops > 0 and bytes_moved > 0:
+				opt_ms = attempt.speedup * baseline_ms if attempt.speedup > 0 else 0
+				if opt_ms > 0:
+					r = compute_roofline(
+						baseline_ms / attempt.speedup,
+						flops, bytes_moved, precision="tf32",
+					)
+					roofline_util = r.utilization_pct
 
-		# Record failures as gotchas
-		failures = [a for a in state.attempts if not a.correct and a.failure_report]
-		for fail in failures:
-			ft = fail.failure_report.failure_type.value
-			err_short = fail.failure_report.error_output[:150]
-			self._learnings.write(
-				"gotchas",
-				f"Problem {problem.name}: strategy '{fail.strategy_name}' "
-				f"failed with {ft}. Error: {err_short}",
-				problem.name,
-			)
+			# Determine root cause
+			if attempt.correct and attempt.speedup > 1.0:
+				outcome = "success"
+				root_cause = (
+					f"Strategy {attempt.strategy_name} achieved "
+					f"{attempt.speedup:.2f}x on "
+					f"{classification.kernel_class} problem"
+				)
+			elif attempt.correct:
+				outcome = "no_improvement"
+				root_cause = "Correct but no speedup over baseline"
+			elif attempt.failure_report:
+				outcome = attempt.failure_report.failure_type.value
+				root_cause = attempt.failure_report.error_output[:200]
+			else:
+				outcome = "unknown_failure"
+				root_cause = "No failure report available"
+
+			self._experience.record(ExperienceRecord(
+				problem_name=problem.name,
+				kernel_class=classification.kernel_class,
+				strategy_name=attempt.strategy_name,
+				approach_notes="",
+				outcome=outcome,
+				speedup=attempt.speedup,
+				baseline_ms=baseline_ms,
+				optimized_ms=(
+					baseline_ms / attempt.speedup
+					if attempt.speedup > 0 else 0
+				),
+				bottleneck_type=(
+					diagnosis.bottleneck_type.value
+					if diagnosis else classification.typical_bottleneck
+				),
+				roofline_utilization_pct=roofline_util,
+				root_cause=root_cause,
+				input_shapes=problem.input_shapes,
+				precision_constraint="fp32_strict",
+			))
 
 		return summary

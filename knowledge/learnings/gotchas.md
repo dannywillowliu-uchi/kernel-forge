@@ -48,3 +48,10 @@ Problem 26_GELU_: strategy 'vectorized_loads_stores' failed with compilation_err
 
 Problem 37_FrobeniusNorm_: strategy 'Kernel Fusion with Streaming' failed with timeout. Error: Command timed out after 300s
 
+
+## [2026-03-16 14:32:42 UTC] (ref: 100_HingeLoss)
+
+Problem 100_HingeLoss: strategy 'tf32_tensor_cores' failed with compilation_error. Error: Traceback (most recent call last):
+  File "/home/danny/kernel-forge-workspace/harness/forge_harness.py", line 120, in <module>
+    cmd_test(args)
+  Fi
