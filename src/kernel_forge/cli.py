@@ -78,9 +78,6 @@ async def _run_optimize(
 	from kernel_forge.config import default_config, load_config
 	from kernel_forge.core.orchestrator import Orchestrator
 	from kernel_forge.core.types import KernelProblem, OptimizationGoal
-	from kernel_forge.knowledge.db import KnowledgeDB
-	from kernel_forge.knowledge.learnings import LearningsManager
-	from kernel_forge.knowledge.query import KnowledgeQuery
 	from kernel_forge.remote.dry_run import DryRunExecutor
 	from kernel_forge.remote.ssh import SSHExecutor
 
@@ -96,8 +93,6 @@ async def _run_optimize(
 	else:
 		config = default_config()
 	config.dry_run = dry_run
-	if max_attempts:
-		config.termination.max_attempts = max_attempts
 
 	# Executor
 	if dry_run:
@@ -110,19 +105,10 @@ async def _run_optimize(
 			cuda_visible_devices=config.hardware.cuda_visible_devices,
 		)
 
-	# DB
-	config.db_path.parent.mkdir(parents=True, exist_ok=True)
-	db = KnowledgeDB(config.db_path)
-	await db.initialize()
-
-	# Knowledge
-	learnings = LearningsManager(config.knowledge_dir)
-	query = KnowledgeQuery(db, learnings)
-
 	# Agent
 	agent = ClaudeCodeAgent(model="opus")
 
-	# Load problem from KernelBench if available, else create stub
+	# Load problem
 	from kernel_forge.harness.kernelbench import KernelBenchAdapter
 	adapter = KernelBenchAdapter(config.knowledge_dir / "kernelbench")
 	problem = adapter.get_problem(problem_name)
@@ -148,20 +134,14 @@ async def _run_optimize(
 	# Run
 	orchestrator = Orchestrator(
 		executor=executor,
-		db=db,
-		learnings=learnings,
-		query=query,
 		config=config,
 		agent=agent,
 	)
 
-	try:
-		summary = await orchestrator.run(problem, opt_goal, run_dir)
-		click.echo(f"\nBest speedup: {summary.get('best_speedup', 0):.3f}x")
-		click.echo(f"Total attempts: {summary.get('total_attempts', 0)}")
-		click.echo(f"Run dir: {run_dir}")
-	finally:
-		await db.close()
+	summary = await orchestrator.run(problem, opt_goal, run_dir)
+	click.echo(f"\nBest speedup: {summary.get('best_speedup', 0):.3f}x")
+	click.echo(f"Approach: {summary.get('approach', 'N/A')}")
+	click.echo(f"Run dir: {run_dir}")
 
 
 @main.command("list-problems")

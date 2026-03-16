@@ -1,44 +1,24 @@
-"""KernelAgent protocol for LLM-driven kernel optimization."""
+"""Agent protocol for autonomous kernel optimization."""
 
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from kernel_forge.core.types import (
-	Attempt,
-	Diagnosis,
-	KernelCandidate,
-	KernelProblem,
-	OptimizationGoal,
-	ProfileData,
-	Strategy,
-)
-
 
 @runtime_checkable
 class KernelAgent(Protocol):
-	"""Interface for any LLM that can generate/optimize kernels."""
+	"""Protocol for an autonomous kernel optimization agent.
 
-	async def generate_kernel(
-		self,
-		problem: KernelProblem,
-		goal: OptimizationGoal,
-		diagnosis: Diagnosis | None,
-		strategy_name: str,
-		prior_attempts: list[Attempt],
-		knowledge_context: str,
-	) -> KernelCandidate | None: ...
+	The agent has tools and iterates on its own. It receives a problem
+	with advisory context and returns its best result.
+	"""
 
-	async def diagnose_bottleneck(
+	async def optimize(
 		self,
-		profile: ProfileData,
-		kernel_source: str,
-		problem: KernelProblem,
-	) -> Diagnosis | None: ...
-
-	async def suggest_strategies(
-		self,
-		diagnosis: Diagnosis,
-		available_strategies: list[Strategy],
-		prior_attempts: list[Attempt],
-	) -> list[str]: ...
+		problem_name: str,
+		problem_source: str,
+		baseline_ms: float,
+		experience_context: str,
+		traits_summary: str,
+		max_attempts: int = 5,
+	) -> object: ...

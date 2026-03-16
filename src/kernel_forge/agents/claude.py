@@ -1,36 +1,27 @@
-"""Claude Code CLI agent implementation."""
+"""Claude Code agent with tool access for autonomous kernel optimization."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
-
-from kernel_forge.agents.prompts import (
-	build_diagnose_prompt,
-	build_generate_prompt,
-	build_suggest_strategies_prompt,
-	parse_diagnosis_output,
-	parse_kernel_output,
-	parse_strategies_output,
-)
-from kernel_forge.core.types import (
-	Attempt,
-	Diagnosis,
-	KernelCandidate,
-	KernelProblem,
-	OptimizationGoal,
-	ProfileData,
-	Strategy,
-)
+import re
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+AGENT_PROMPT_PATH = Path(__file__).parent / "agent_prompt.md"
 DEFAULT_MODEL = "opus"
-DEFAULT_MAX_TURNS = 1
+DEFAULT_MAX_TURNS = 30
 
 
 class ClaudeCodeAgent:
-	"""KernelAgent implementation that wraps the Claude CLI subprocess."""
+	"""Autonomous kernel optimization agent using Claude Code CLI.
+
+	Unlike v1 (single-turn text generator), this agent has tools:
+	it can SSH to the B200, compile kernels, benchmark them, profile
+	with ncu, and iterate on its own. The orchestrator manages
+	budget and termination; the agent manages the optimization.
+	"""
 
 	def __init__(
 		self,
@@ -39,9 +30,67 @@ class ClaudeCodeAgent:
 	) -> None:
 		self._model = model
 		self._max_turns = max_turns
+		self._agent_prompt = ""
+		if AGENT_PROMPT_PATH.exists():
+			self._agent_prompt = AGENT_PROMPT_PATH.read_text()
 
-	async def _invoke_claude(self, prompt: str) -> str:
-		"""Run claude CLI subprocess and return its text output."""
+	async def optimize(
+		self,
+		problem_name: str,
+		problem_source: str,
+		baseline_ms: float,
+		experience_context: str,
+		traits_summary: str,
+		max_attempts: int = 5,
+	) -> AgentResult:
+		"""Run the agent autonomously on a kernel problem.
+
+		The agent has full tool access: SSH to B200, benchmark,
+		profile, write kernels. It iterates until it finds the
+		best kernel it can within the turn budget.
+		"""
+		problem_section = (
+			f"## Problem: {problem_name}\n\n"
+			f"Reference implementation:\n```python\n{problem_source}\n```\n\n"
+			f"Baseline runtime: {baseline_ms:.4f} ms\n"
+		)
+
+		traits_section = (
+			f"## Trait Analysis (advisory)\n{traits_summary}\n"
+		)
+
+		experience_section = ""
+		if experience_context:
+			experience_section = f"\n{experience_context}\n"
+
+		task_section = (
+			f"\n## Your Task\n\n"
+			f"Optimize the kernel above. The reference runs at "
+			f"{baseline_ms:.4f} ms on B200 GPU 2.\n\n"
+			f"1. Profile the baseline with ncu to understand the bottleneck\n"
+			f"2. Write an optimized kernel in kernels/{problem_name}_opt.py\n"
+			f"3. Test correctness and benchmark\n"
+			f"4. Profile your kernel to see where you are on the roofline\n"
+			f"5. Iterate to improve\n"
+			f"6. When done, output BEST_KERNEL_PATH, BEST_SPEEDUP, APPROACH\n"
+		)
+
+		full_prompt = (
+			self._agent_prompt + "\n\n"
+			+ problem_section
+			+ traits_section
+			+ experience_section
+			+ task_section
+		)
+
+		# Invoke Claude Code with tool access
+		output = await self._invoke(full_prompt)
+
+		# Parse results from agent output
+		return self._parse_result(output, problem_name)
+
+	async def _invoke(self, prompt: str) -> str:
+		"""Run Claude Code CLI with tools enabled."""
 		cmd = [
 			"claude",
 			"--permission-mode", "auto",
@@ -50,20 +99,26 @@ class ClaudeCodeAgent:
 			"--model", self._model,
 			"-p", prompt,
 		]
-		logger.debug("Invoking claude CLI with model=%s", self._model)
+		logger.info(
+			"Invoking Claude agent (model=%s, max_turns=%d)",
+			self._model, self._max_turns,
+		)
+
+		timeout_s = 600 if self._model == "opus" else 300
 
 		proc = await asyncio.create_subprocess_exec(
 			*cmd,
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.PIPE,
 		)
-		timeout_s = 300 if self._model == "opus" else 120
 		try:
 			stdout_bytes, stderr_bytes = await asyncio.wait_for(
 				proc.communicate(), timeout=timeout_s
 			)
 		except asyncio.TimeoutError:
-			logger.warning("Claude CLI timed out after %ds", timeout_s)
+			logger.warning(
+				"Claude agent timed out after %ds", timeout_s
+			)
 			try:
 				proc.kill()
 			except ProcessLookupError:
@@ -75,97 +130,61 @@ class ClaudeCodeAgent:
 
 		if proc.returncode != 0:
 			logger.warning(
-				"Claude CLI returned exit code %d: %s",
-				proc.returncode,
-				stderr[:500],
+				"Claude agent exit code %d: %s",
+				proc.returncode, stderr[:300],
 			)
 
 		return stdout
 
-	async def generate_kernel(
-		self,
-		problem: KernelProblem,
-		goal: OptimizationGoal,
-		diagnosis: Diagnosis | None,
-		strategy_name: str,
-		prior_attempts: list[Attempt],
-		knowledge_context: str,
-	) -> KernelCandidate | None:
-		"""Generate a kernel candidate via Claude CLI.
-
-		On parse failure, retries once with a format reminder.
-		"""
-		prompt = build_generate_prompt(
-			problem=problem,
-			goal=goal,
-			diagnosis=diagnosis,
-			strategy_name=strategy_name,
-			prior_attempts=prior_attempts,
-			knowledge_context=knowledge_context,
+	def _parse_result(
+		self, output: str, problem_name: str
+	) -> AgentResult:
+		"""Parse the agent's output for best kernel info."""
+		# Look for BEST_KERNEL_PATH
+		path_match = re.search(
+			r"BEST_KERNEL_PATH:\s*(.+)", output
+		)
+		speedup_match = re.search(
+			r"BEST_SPEEDUP:\s*([\d.]+)", output
+		)
+		approach_match = re.search(
+			r"APPROACH:\s*(.+)", output
 		)
 
-		raw = await self._invoke_claude(prompt)
-		candidate = parse_kernel_output(raw)
-
-		if candidate is None:
-			logger.info("First parse failed, retrying with format reminder")
-			retry_prompt = (
-				prompt
-				+ "\n\nIMPORTANT: Your previous response did not include the required markers. "
-				"Please format your response with:\n"
-				"KERNEL_SOURCE_START\n<kernel code>\nKERNEL_SOURCE_END\n"
-				"APPROACH_NOTES: <explanation>"
-			)
-			raw = await self._invoke_claude(retry_prompt)
-			candidate = parse_kernel_output(raw)
-
-		if candidate is not None:
-			candidate.strategy_name = strategy_name
-
-		return candidate
-
-	async def diagnose_bottleneck(
-		self,
-		profile: ProfileData,
-		kernel_source: str,
-		problem: KernelProblem,
-	) -> Diagnosis | None:
-		"""Diagnose the performance bottleneck via Claude CLI."""
-		prompt = build_diagnose_prompt(
-			profile=profile,
-			kernel_source=kernel_source,
-			problem=problem,
+		kernel_path = (
+			path_match.group(1).strip() if path_match else ""
+		)
+		speedup = (
+			float(speedup_match.group(1))
+			if speedup_match else 0.0
+		)
+		approach = (
+			approach_match.group(1).strip()
+			if approach_match else ""
 		)
 
-		raw = await self._invoke_claude(prompt)
-		diagnosis = parse_diagnosis_output(raw)
-
-		if diagnosis is not None:
-			diagnosis.profiling_tier = profile.profiling_tier
-
-		return diagnosis
-
-	async def suggest_strategies(
-		self,
-		diagnosis: Diagnosis,
-		available_strategies: list[Strategy],
-		prior_attempts: list[Attempt],
-	) -> list[str]:
-		"""Suggest strategy names via Claude CLI.
-
-		Falls back to ["shared_mem_tiling"] if parsing fails.
-		"""
-		prompt = build_suggest_strategies_prompt(
-			diagnosis=diagnosis,
-			available_strategies=available_strategies,
-			prior_attempts=prior_attempts,
+		return AgentResult(
+			kernel_path=kernel_path,
+			speedup=speedup,
+			approach=approach,
+			raw_output=output,
+			success=speedup > 1.0,
 		)
 
-		raw = await self._invoke_claude(prompt)
-		names = parse_strategies_output(raw)
 
-		if not names:
-			logger.warning("Strategy parsing failed, using fallback")
-			return ["shared_mem_tiling"]
+class AgentResult:
+	"""Result from an autonomous agent optimization run."""
 
-		return names
+	def __init__(
+		self,
+		kernel_path: str = "",
+		speedup: float = 0.0,
+		approach: str = "",
+		raw_output: str = "",
+		success: bool = False,
+	) -> None:
+		self.kernel_path = kernel_path
+		self.speedup = speedup
+		self.approach = approach
+		self.raw_output = raw_output
+		self.success = success
