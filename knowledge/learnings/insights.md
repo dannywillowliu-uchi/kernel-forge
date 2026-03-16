@@ -66,3 +66,12 @@ Removing .contiguous() on transposed matmul inputs gives ~5x extra speedup (10.4
 
 ## [2026-03-16 19:00] irregular_shape_padding
 Padding irregular matrix dimensions to multiples of 128 before matmul boosted speedup from 2.1x to 8.9x on problem 8 (8205x2949x5921). Tensor cores work on fixed tiles; irregular shapes waste computation at boundaries.
+
+## [2026-03-16 21:00] triton_beats_pytorch_elementwise
+Triton elementwise kernels achieve ~1.51x over PyTorch native on B200 for large FP32 tensors (4096x393216). PyTorch native reaches ~6ms, Triton reaches ~4ms (actual bandwidth ceiling ~3.2 TB/s). PyTorch's eager kernels are NOT at the HBM bandwidth ceiling on B200 -- this contradicts the earlier batch 4 finding.
+
+## [2026-03-16 21:00] kernel_fusion_dominant_strategy
+For memory-bound ops, kernel fusion is the dominant optimization: Softsign 5.24x (3->1 kernel), RMSNorm 5.98x (4->1), GroupNorm 4.00x, InstanceNorm 3.29x, Softplus 2.21x, BatchNorm 2.52x. Look for baselines that launch multiple CUDA kernels for what should be one operation.
+
+## [2026-03-16 21:00] batchnorm_eval_mode_trick
+BatchNorm in eval mode can be optimized by precomputing scale=weight*rsqrt(var+eps) and shift=bias-mean*scale, then running a single x*scale+shift kernel. 2.52x speedup.
