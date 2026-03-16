@@ -17,7 +17,7 @@ class HardwareConfig:
 	remote_workspace: str = "~/kernel-forge-workspace"
 	gpu_check_interval_seconds: int = 300
 	command_timeout_seconds: int = 300
-	gpu_memory_threshold_mib: int = 100
+	gpu_memory_threshold_mib: int = 1024
 
 	def wrap_remote_command(self, cmd: str) -> str:
 		"""Wrap a command with cd, source activate, CUDA_VISIBLE_DEVICES."""

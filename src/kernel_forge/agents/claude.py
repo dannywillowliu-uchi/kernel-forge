@@ -93,7 +93,7 @@ class ClaudeCodeAgent:
 		"""Run Claude Code CLI with tools enabled."""
 		cmd = [
 			"claude",
-			"--permission-mode", "auto",
+			"--permission-mode", "bypassPermissions",
 			"--max-turns", str(self._max_turns),
 			"--output-format", "text",
 			"--model", self._model,
