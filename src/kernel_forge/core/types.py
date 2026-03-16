@@ -151,3 +151,53 @@ class TerminationConfig:
 	max_cost_usd: float = 5.0
 	max_wall_time_seconds: int = 1800
 	max_consecutive_failures: int = 5
+
+
+@dataclass
+class HardwarePeaks:
+	"""Peak theoretical performance for a hardware target."""
+
+	fp32_tflops: float  # CUDA core FP32
+	tf32_tflops: float  # Tensor core TF32
+	bf16_tflops: float  # Tensor core BF16
+	fp8_tflops: float  # Tensor core FP8
+	fp4_tflops: float  # Tensor core FP4 (Blackwell only)
+	hbm_bandwidth_tb_s: float  # HBM bandwidth in TB/s
+	l2_bandwidth_tb_s: float  # L2 bandwidth in TB/s
+
+
+# B200 hardware peaks
+B200_PEAKS = HardwarePeaks(
+	fp32_tflops=481.0,
+	tf32_tflops=964.0,  # ~half BF16 tensor core throughput
+	bf16_tflops=1929.0,
+	fp8_tflops=3851.0,
+	fp4_tflops=7702.0,
+	hbm_bandwidth_tb_s=8.0,
+	l2_bandwidth_tb_s=21.0,
+)
+
+
+@dataclass
+class RooflineAnalysis:
+	"""Gap analysis: how far are we from peak and why."""
+
+	# Measured performance
+	achieved_tflops: float
+	runtime_ms: float
+
+	# Peak for the precision being used
+	peak_tflops: float
+	precision: str  # "fp32", "tf32", "bf16", "fp8", "fp4"
+
+	# Utilization
+	utilization_pct: float  # achieved / peak * 100
+	headroom_pct: float  # 100 - utilization
+
+	# Roofline classification
+	arithmetic_intensity: float  # FLOPs / bytes moved
+	roofline_bound: str  # "compute_bound" | "memory_bound" | "balanced"
+
+	# Decision
+	worth_optimizing: bool  # True if headroom > threshold
+	explanation: str  # Why or why not to continue

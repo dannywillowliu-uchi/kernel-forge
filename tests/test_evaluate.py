@@ -4,11 +4,17 @@ from __future__ import annotations
 
 from kernel_forge.core.evaluate import (
 	classify_failure,
+	compute_roofline,
 	compute_score,
 	should_escalate_profiling,
 	should_terminate,
 )
-from kernel_forge.core.types import Attempt, FailureType, TerminationConfig
+from kernel_forge.core.types import (
+	B200_PEAKS,
+	Attempt,
+	FailureType,
+	TerminationConfig,
+)
 
 
 class TestComputeScore:
@@ -167,3 +173,79 @@ class TestClassifyFailure:
 	def test_unknown_nonzero_defaults_to_compilation(self) -> None:
 		result = classify_failure(1, "something unknown happened", "")
 		assert result == FailureType.COMPILATION_ERROR
+
+
+class TestComputeRoofline:
+	"""Test roofline gap analysis."""
+
+	def test_matmul_4096_tf32(self) -> None:
+		"""Real result from our first KernelBench run on B200."""
+		n = 4096
+		flops = 2 * n**3  # 137.4 GFLOP
+		bytes_moved = 3 * n * n * 4  # A + B read + C write, FP32
+		result = compute_roofline(
+			runtime_ms=0.1828,
+			flops=flops,
+			bytes_moved=bytes_moved,
+			precision="tf32",
+		)
+		assert result.achieved_tflops > 700
+		assert result.utilization_pct > 70
+		assert result.headroom_pct < 30
+		assert result.roofline_bound == "compute_bound"
+		assert result.worth_optimizing is True  # 22% headroom > 10% threshold
+
+	def test_near_peak_not_worth_optimizing(self) -> None:
+		"""When utilization is >90%, declare near-optimal."""
+		result = compute_roofline(
+			runtime_ms=0.15,
+			flops=2 * 4096**3,
+			bytes_moved=3 * 4096 * 4096 * 4,
+			precision="tf32",
+			headroom_threshold=10.0,
+		)
+		assert result.utilization_pct > 90
+		assert result.worth_optimizing is False
+		assert "near-optimal" in result.explanation.lower() or "only" in result.explanation.lower()
+
+	def test_memory_bound_kernel(self) -> None:
+		"""Elementwise kernel with low arithmetic intensity."""
+		n = 1024 * 1024
+		flops = n  # 1 FLOP per element
+		bytes_moved = 2 * n * 4  # read + write, FP32
+		result = compute_roofline(
+			runtime_ms=0.01,
+			flops=flops,
+			bytes_moved=bytes_moved,
+			precision="tf32",
+		)
+		assert result.roofline_bound == "memory_bound"
+		assert result.arithmetic_intensity < 1.0
+
+	def test_bf16_precision(self) -> None:
+		"""BF16 should use BF16 peak."""
+		result = compute_roofline(
+			runtime_ms=0.0906,
+			flops=2 * 4096**3,
+			bytes_moved=3 * 4096 * 4096 * 2,  # BF16 = 2 bytes
+			precision="bf16",
+		)
+		assert result.peak_tflops == B200_PEAKS.bf16_tflops
+		assert result.utilization_pct > 70
+
+	def test_slow_kernel_has_high_headroom(self) -> None:
+		"""A very slow kernel should have high headroom and be worth optimizing."""
+		result = compute_roofline(
+			runtime_ms=100.0,
+			flops=2 * 4096**3,
+			bytes_moved=3 * 4096 * 4096 * 4,
+			precision="tf32",
+		)
+		assert result.headroom_pct > 99
+		assert result.worth_optimizing is True
+
+	def test_b200_peaks_values(self) -> None:
+		"""Verify B200 peak constants."""
+		assert B200_PEAKS.bf16_tflops == 1929.0
+		assert B200_PEAKS.fp32_tflops == 481.0
+		assert B200_PEAKS.hbm_bandwidth_tb_s == 8.0
