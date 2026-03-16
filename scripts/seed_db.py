@@ -18,8 +18,8 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from kernel_forge.knowledge.db import KnowledgeDB
 from kernel_forge.core.types import Strategy, StrategyCategory
+from kernel_forge.knowledge.db import KnowledgeDB
 
 
 def parse_strategies_from_markdown(file_path: Path) -> list[Strategy]:

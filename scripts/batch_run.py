@@ -21,7 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from kernel_forge.agents.claude import ClaudeCodeAgent
-from kernel_forge.config import ForgeConfig, default_config
+from kernel_forge.config import default_config
 from kernel_forge.core.orchestrator import Orchestrator
 from kernel_forge.core.types import OptimizationGoal
 from kernel_forge.harness.kernelbench import KernelBenchAdapter
@@ -52,7 +52,7 @@ async def run_batch(
 
 	learnings = LearningsManager(config.knowledge_dir)
 	query = KnowledgeQuery(db, learnings)
-	agent = ClaudeCodeAgent(model="sonnet")
+	agent = ClaudeCodeAgent(model="haiku")
 	adapter = KernelBenchAdapter(config.knowledge_dir / "kernelbench")
 
 	results: list[dict] = []
@@ -129,7 +129,8 @@ async def run_batch(
 	}
 
 	# Save report
-	report_path = Path("runs") / f"batch_report_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+	ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+	report_path = Path("runs") / f"batch_report_{ts}.json"
 	report_path.parent.mkdir(parents=True, exist_ok=True)
 	report_path.write_text(json.dumps(report, indent=2))
 

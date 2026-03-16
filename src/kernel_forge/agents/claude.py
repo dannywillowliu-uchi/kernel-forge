@@ -57,7 +57,17 @@ class ClaudeCodeAgent:
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.PIPE,
 		)
-		stdout_bytes, stderr_bytes = await proc.communicate()
+		try:
+			stdout_bytes, stderr_bytes = await asyncio.wait_for(
+				proc.communicate(), timeout=120
+			)
+		except asyncio.TimeoutError:
+			logger.warning("Claude CLI timed out after 120s")
+			try:
+				proc.kill()
+			except ProcessLookupError:
+				pass
+			return ""
 
 		stdout = stdout_bytes.decode("utf-8", errors="replace")
 		stderr = stderr_bytes.decode("utf-8", errors="replace")
