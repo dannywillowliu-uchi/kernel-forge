@@ -1,0 +1,702 @@
+[
+  {
+    "problem": "100_HingeLoss",
+    "error": null,
+    "eager_ms": 5.8932,
+    "compile_ms": 2.4008,
+    "compile_speedup": 2.4547
+  },
+  {
+    "problem": "10_3D_tensor_matrix_multiplication",
+    "error": null,
+    "eager_ms": 0.8646,
+    "compile_ms": 0.9292,
+    "compile_speedup": 0.9305
+  },
+  {
+    "problem": "11_4D_tensor_matrix_multiplication",
+    "error": null,
+    "eager_ms": 7.1258,
+    "compile_ms": 7.5876,
+    "compile_speedup": 0.9391
+  },
+  {
+    "problem": "12_Matmul_with_diagonal_matrices_",
+    "error": null,
+    "eager_ms": 0.0474,
+    "compile_ms": 0.0515,
+    "compile_speedup": 0.9204
+  },
+  {
+    "problem": "13_Matmul_for_symmetric_matrices",
+    "error": null,
+    "eager_ms": 2.1647,
+    "compile_ms": 2.2277,
+    "compile_speedup": 0.9717
+  },
+  {
+    "problem": "14_Matmul_for_upper_triangular_matrices",
+    "error": null,
+    "eager_ms": 2.2134,
+    "compile_ms": 2.2511,
+    "compile_speedup": 0.9833
+  },
+  {
+    "problem": "15_Matmul_for_lower_triangular_matrices",
+    "error": null,
+    "eager_ms": 2.2104,
+    "compile_ms": 2.2481,
+    "compile_speedup": 0.9832
+  },
+  {
+    "problem": "16_Matmul_with_transposed_A",
+    "error": null,
+    "eager_ms": 2.4583,
+    "compile_ms": 2.446,
+    "compile_speedup": 1.005
+  },
+  {
+    "problem": "17_Matmul_with_transposed_B",
+    "error": null,
+    "eager_ms": 2.2345,
+    "compile_ms": 2.328,
+    "compile_speedup": 0.9598
+  },
+  {
+    "problem": "18_Matmul_with_transposed_both",
+    "error": null,
+    "eager_ms": 2.4492,
+    "compile_ms": 2.5411,
+    "compile_speedup": 0.9638
+  },
+  {
+    "problem": "19_ReLU",
+    "error": null,
+    "eager_ms": 1.8642,
+    "compile_ms": 4.5431,
+    "compile_speedup": 0.4103
+  },
+  {
+    "problem": "1_Square_matrix_multiplication_",
+    "error": null,
+    "eager_ms": 2.1647,
+    "compile_ms": 2.2278,
+    "compile_speedup": 0.9717
+  },
+  {
+    "problem": "20_LeakyReLU",
+    "error": null,
+    "eager_ms": 1.8641,
+    "compile_ms": 4.5425,
+    "compile_speedup": 0.4104
+  },
+  {
+    "problem": "21_Sigmoid",
+    "error": null,
+    "eager_ms": 1.8547,
+    "compile_ms": 4.5417,
+    "compile_speedup": 0.4084
+  },
+  {
+    "problem": "22_Tanh",
+    "error": null,
+    "eager_ms": 1.8622,
+    "compile_ms": 4.5337,
+    "compile_speedup": 0.4107
+  },
+  {
+    "problem": "23_Softmax",
+    "error": null,
+    "eager_ms": 4.0535,
+    "compile_ms": 5.8092,
+    "compile_speedup": 0.6978
+  },
+  {
+    "problem": "24_LogSoftmax",
+    "error": null,
+    "eager_ms": 3.8962,
+    "compile_ms": 5.6718,
+    "compile_speedup": 0.6869
+  },
+  {
+    "problem": "25_Swish",
+    "error": null,
+    "eager_ms": 4.6195,
+    "compile_ms": 4.5415,
+    "compile_speedup": 1.0172
+  },
+  {
+    "problem": "26_GELU_",
+    "error": null,
+    "eager_ms": 2.0163,
+    "compile_ms": 4.5298,
+    "compile_speedup": 0.4451
+  },
+  {
+    "problem": "27_SELU_",
+    "error": null,
+    "eager_ms": 1.8624,
+    "compile_ms": 4.5939,
+    "compile_speedup": 0.4054
+  },
+  {
+    "problem": "28_HardSigmoid",
+    "error": null,
+    "eager_ms": 1.864,
+    "compile_ms": 4.5423,
+    "compile_speedup": 0.4104
+  },
+  {
+    "problem": "29_Softplus",
+    "error": null,
+    "eager_ms": 2.7448,
+    "compile_ms": 4.6037,
+    "compile_speedup": 0.5962
+  },
+  {
+    "problem": "2_Standard_matrix_multiplication_",
+    "error": null,
+    "eager_ms": 2.4625,
+    "compile_ms": 2.5141,
+    "compile_speedup": 0.9795
+  },
+  {
+    "problem": "30_Softsign",
+    "error": null,
+    "eager_ms": 6.4783,
+    "compile_ms": 4.5417,
+    "compile_speedup": 1.4264
+  },
+  {
+    "problem": "31_ELU",
+    "error": null,
+    "eager_ms": 1.8625,
+    "compile_ms": 4.5486,
+    "compile_speedup": 0.4095
+  },
+  {
+    "problem": "32_HardTanh",
+    "error": null,
+    "eager_ms": 1.8637,
+    "compile_ms": 4.5413,
+    "compile_speedup": 0.4104
+  },
+  {
+    "problem": "33_BatchNorm",
+    "error": null,
+    "eager_ms": 2.2273,
+    "compile_ms": 3.0425,
+    "compile_speedup": 0.7321
+  },
+  {
+    "problem": "34_InstanceNorm",
+    "error": null,
+    "eager_ms": 7.2429,
+    "compile_ms": 6.7752,
+    "compile_speedup": 1.069
+  },
+  {
+    "problem": "35_GroupNorm_",
+    "error": null,
+    "eager_ms": 10.5339,
+    "compile_ms": 6.4788,
+    "compile_speedup": 1.6259
+  },
+  {
+    "problem": "36_RMSNorm_",
+    "error": null,
+    "eager_ms": 8.8717,
+    "compile_ms": 5.3501,
+    "compile_speedup": 1.6582
+  },
+  {
+    "problem": "37_FrobeniusNorm_",
+    "error": null,
+    "eager_ms": 6.079,
+    "compile_ms": 6.3313,
+    "compile_speedup": 0.9602
+  },
+  {
+    "problem": "38_L1Norm_",
+    "error": null,
+    "eager_ms": 9.7022,
+    "compile_ms": 7.0054,
+    "compile_speedup": 1.385
+  },
+  {
+    "problem": "39_L2Norm_",
+    "error": null,
+    "eager_ms": 7.2212,
+    "compile_ms": 7.5292,
+    "compile_speedup": 0.9591
+  },
+  {
+    "problem": "3_Batched_matrix_multiplication",
+    "error": null,
+    "eager_ms": 4.2849,
+    "compile_ms": 4.8545,
+    "compile_speedup": 0.8827
+  },
+  {
+    "problem": "40_LayerNorm",
+    "error": null,
+    "eager_ms": 9.0063,
+    "compile_ms": 0.3091,
+    "compile_speedup": 29.1372
+  },
+  {
+    "problem": "41_Max_Pooling_1D",
+    "error": null,
+    "eager_ms": 8.5773,
+    "compile_ms": 3.7643,
+    "compile_speedup": 2.2786
+  },
+  {
+    "problem": "42_Max_Pooling_2D",
+    "error": null,
+    "eager_ms": 9.2596,
+    "compile_ms": 4.7317,
+    "compile_speedup": 1.9569
+  },
+  {
+    "problem": "43_Max_Pooling_3D",
+    "error": null,
+    "eager_ms": 3.6072,
+    "compile_ms": 3.0125,
+    "compile_speedup": 1.1974
+  },
+  {
+    "problem": "44_Average_Pooling_1D",
+    "error": null,
+    "eager_ms": 3.9211,
+    "compile_ms": 2.3402,
+    "compile_speedup": 1.6755
+  },
+  {
+    "problem": "45_Average_Pooling_2D",
+    "error": null,
+    "eager_ms": 2.7248,
+    "compile_ms": 9.8603,
+    "compile_speedup": 0.2763
+  },
+  {
+    "problem": "46_Average_Pooling_3D",
+    "error": null,
+    "eager_ms": 7.5321,
+    "compile_ms": 11.1324,
+    "compile_speedup": 0.6766
+  },
+  {
+    "problem": "47_Sum_reduction_over_a_dimension",
+    "error": null,
+    "eager_ms": 1.4657,
+    "compile_ms": 4.9074,
+    "compile_speedup": 0.2987
+  },
+  {
+    "problem": "48_Mean_reduction_over_a_dimension",
+    "error": null,
+    "eager_ms": 1.462,
+    "compile_ms": 4.9082,
+    "compile_speedup": 0.2979
+  },
+  {
+    "problem": "49_Max_reduction_over_a_dimension",
+    "error": null,
+    "eager_ms": 1.9523,
+    "compile_ms": 4.9101,
+    "compile_speedup": 0.3976
+  },
+  {
+    "problem": "4_Matrix_vector_multiplication_",
+    "error": null,
+    "eager_ms": 1.6171,
+    "compile_ms": 4.7989,
+    "compile_speedup": 0.337
+  },
+  {
+    "problem": "50_conv_standard_2D__square_input__square_kernel",
+    "error": null,
+    "eager_ms": 1.8073,
+    "compile_ms": 2.4279,
+    "compile_speedup": 0.7444
+  },
+  {
+    "problem": "51_Argmax_over_a_dimension",
+    "error": null,
+    "eager_ms": 1.9522,
+    "compile_ms": 5.4841,
+    "compile_speedup": 0.356
+  },
+  {
+    "problem": "52_Argmin_over_a_dimension",
+    "error": null,
+    "eager_ms": 1.9517,
+    "compile_ms": 5.4805,
+    "compile_speedup": 0.3561
+  },
+  {
+    "problem": "53_Min_reduction_over_a_dimension",
+    "error": null,
+    "eager_ms": 1.9529,
+    "compile_ms": 4.9082,
+    "compile_speedup": 0.3979
+  },
+  {
+    "problem": "54_conv_standard_3D__square_input__square_kernel",
+    "error": null,
+    "eager_ms": 2.2232,
+    "compile_ms": 1.2515,
+    "compile_speedup": 1.7764
+  },
+  {
+    "problem": "55_conv_standard_2D__asymmetric_input__square_kernel",
+    "error": null,
+    "eager_ms": 2.4467,
+    "compile_ms": 2.5178,
+    "compile_speedup": 0.9718
+  },
+  {
+    "problem": "56_conv_standard_2D__asymmetric_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 1.1567,
+    "compile_ms": 1.1698,
+    "compile_speedup": 0.9888
+  },
+  {
+    "problem": "57_conv_transposed_2D__square_input__square_kernel",
+    "error": null,
+    "eager_ms": 2.995,
+    "compile_ms": 3.238,
+    "compile_speedup": 0.925
+  },
+  {
+    "problem": "58_conv_transposed_3D__asymmetric_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 0.8308,
+    "compile_ms": 0.8688,
+    "compile_speedup": 0.9563
+  },
+  {
+    "problem": "59_conv_standard_3D__asymmetric_input__square_kernel",
+    "error": null,
+    "eager_ms": 2.6966,
+    "compile_ms": 2.1934,
+    "compile_speedup": 1.2294
+  },
+  {
+    "problem": "5_Matrix_scalar_multiplication",
+    "error": null,
+    "eager_ms": 1.2412,
+    "compile_ms": 3.0436,
+    "compile_speedup": 0.4078
+  },
+  {
+    "problem": "60_conv_standard_3D__square_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 6.9016,
+    "compile_ms": 4.2865,
+    "compile_speedup": 1.6101
+  },
+  {
+    "problem": "61_conv_transposed_3D__square_input__square_kernel",
+    "error": null,
+    "eager_ms": 1.4829,
+    "compile_ms": 1.6617,
+    "compile_speedup": 0.8924
+  },
+  {
+    "problem": "62_conv_standard_2D__square_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 1.1941,
+    "compile_ms": 1.1847,
+    "compile_speedup": 1.0079
+  },
+  {
+    "problem": "63_conv_standard_2D__square_input__square_kernel",
+    "error": null,
+    "eager_ms": 7.1455,
+    "compile_ms": 5.8741,
+    "compile_speedup": 1.2164
+  },
+  {
+    "problem": "64_conv_transposed_1D",
+    "error": null,
+    "eager_ms": 2.6468,
+    "compile_ms": 3.4986,
+    "compile_speedup": 0.7565
+  },
+  {
+    "problem": "65_conv_transposed_2D__square_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 1.3704,
+    "compile_ms": 1.4484,
+    "compile_speedup": 0.9461
+  },
+  {
+    "problem": "66_conv_standard_3D__asymmetric_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 3.3974,
+    "compile_ms": 2.1407,
+    "compile_speedup": 1.5871
+  },
+  {
+    "problem": "67_conv_standard_1D",
+    "error": null,
+    "eager_ms": 1.9223,
+    "compile_ms": 2.3556,
+    "compile_speedup": 0.8161
+  },
+  {
+    "problem": "68_conv_transposed_3D__square_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 4.1843,
+    "compile_ms": 4.4029,
+    "compile_speedup": 0.9504
+  },
+  {
+    "problem": "69_conv_transposed_2D__asymmetric_input__asymmetric_kernel",
+    "error": null,
+    "eager_ms": 1.5557,
+    "compile_ms": 1.5967,
+    "compile_speedup": 0.9743
+  },
+  {
+    "problem": "6_Matmul_with_large_K_dimension_",
+    "error": null,
+    "eager_ms": 1.5222,
+    "compile_ms": 1.5581,
+    "compile_speedup": 0.977
+  },
+  {
+    "problem": "70_conv_transposed_3D__asymmetric_input__square_kernel",
+    "error": null,
+    "eager_ms": 4.3922,
+    "compile_ms": 4.9756,
+    "compile_speedup": 0.8827
+  },
+  {
+    "problem": "71_conv_transposed_2D__asymmetric_input__square_kernel",
+    "error": null,
+    "eager_ms": 0.9436,
+    "compile_ms": 0.9473,
+    "compile_speedup": 0.9961
+  },
+  {
+    "problem": "72_conv_transposed_3D_asymmetric_input_asymmetric_kernel___strided_padded_grouped_",
+    "error": null,
+    "eager_ms": 1.2123,
+    "compile_ms": 1.2258,
+    "compile_speedup": 0.989
+  },
+  {
+    "problem": "73_conv_transposed_3D_asymmetric_input_square_kernel__strided_padded__grouped",
+    "error": null,
+    "eager_ms": 1.0952,
+    "compile_ms": 1.1591,
+    "compile_speedup": 0.9449
+  },
+  {
+    "problem": "74_conv_transposed_1D_dilated",
+    "error": null,
+    "eager_ms": 1.1103,
+    "compile_ms": 1.3456,
+    "compile_speedup": 0.8251
+  },
+  {
+    "problem": "75_conv_transposed_2D_asymmetric_input_asymmetric_kernel_strided__grouped____padded____dilated__",
+    "error": null,
+    "eager_ms": 2.5251,
+    "compile_ms": 2.5592,
+    "compile_speedup": 0.9867
+  },
+  {
+    "problem": "76_conv_standard_1D_dilated_strided__",
+    "error": null,
+    "eager_ms": 14.7872,
+    "compile_ms": 18.2397,
+    "compile_speedup": 0.8107
+  },
+  {
+    "problem": "77_conv_transposed_3D_square_input_square_kernel___padded____dilated____strided__",
+    "error": null,
+    "eager_ms": 0.6458,
+    "compile_ms": 0.6585,
+    "compile_speedup": 0.9807
+  },
+  {
+    "problem": "78_conv_transposed_2D_asymmetric_input_asymmetric_kernel___padded__",
+    "error": null,
+    "eager_ms": 1.3395,
+    "compile_ms": 1.3473,
+    "compile_speedup": 0.9942
+  },
+  {
+    "problem": "79_conv_transposed_1D_asymmetric_input_square_kernel___padded____strided____dilated__",
+    "error": null,
+    "eager_ms": 1.2533,
+    "compile_ms": 1.3784,
+    "compile_speedup": 0.9092
+  },
+  {
+    "problem": "7_Matmul_with_small_K_dimension_",
+    "error": null,
+    "eager_ms": 3.3056,
+    "compile_ms": 2.7991,
+    "compile_speedup": 1.181
+  },
+  {
+    "problem": "80_conv_standard_2D_square_input_asymmetric_kernel___dilated____padded__",
+    "error": null,
+    "eager_ms": 2.0405,
+    "compile_ms": 2.1787,
+    "compile_speedup": 0.9366
+  },
+  {
+    "problem": "81_conv_transposed_2D_asymmetric_input_square_kernel___dilated____padded____strided__",
+    "error": null,
+    "eager_ms": 0.5352,
+    "compile_ms": 0.5037,
+    "compile_speedup": 1.0625
+  },
+  {
+    "problem": "82_conv_depthwise_2D_square_input_square_kernel",
+    "error": null,
+    "eager_ms": 2.2275,
+    "compile_ms": 1.7056,
+    "compile_speedup": 1.306
+  },
+  {
+    "problem": "83_conv_depthwise_2D_square_input_asymmetric_kernel",
+    "error": null,
+    "eager_ms": 2.5404,
+    "compile_ms": 5.5709,
+    "compile_speedup": 0.456
+  },
+  {
+    "problem": "84_conv_depthwise_2D_asymmetric_input_square_kernel",
+    "error": null,
+    "eager_ms": 8.873,
+    "compile_ms": 6.7114,
+    "compile_speedup": 1.3221
+  },
+  {
+    "problem": "85_conv_depthwise_2D_asymmetric_input_asymmetric_kernel",
+    "error": null,
+    "eager_ms": 2.7138,
+    "compile_ms": 12.099,
+    "compile_speedup": 0.2243
+  },
+  {
+    "problem": "86_conv_depthwise_separable_2D",
+    "error": null,
+    "eager_ms": 2.7321,
+    "compile_ms": 3.8508,
+    "compile_speedup": 0.7095
+  },
+  {
+    "problem": "87_conv_pointwise_2D",
+    "error": null,
+    "eager_ms": 2.4785,
+    "compile_ms": 12.9068,
+    "compile_speedup": 0.192
+  },
+  {
+    "problem": "88_MinGPTNewGelu",
+    "error": null,
+    "eager_ms": 0.7267,
+    "compile_ms": 0.2092,
+    "compile_speedup": 3.4737
+  },
+  {
+    "problem": "89_cumsum",
+    "error": null,
+    "eager_ms": 4.1543,
+    "compile_ms": 3.1742,
+    "compile_speedup": 1.3088
+  },
+  {
+    "problem": "8_Matmul_with_irregular_shapes_",
+    "error": null,
+    "eager_ms": 4.5321,
+    "compile_ms": 4.6097,
+    "compile_speedup": 0.9832
+  },
+  {
+    "problem": "90_cumprod",
+    "error": null,
+    "eager_ms": 4.1547,
+    "compile_ms": 3.1736,
+    "compile_speedup": 1.3091
+  },
+  {
+    "problem": "91_cumsum_reverse",
+    "error": null,
+    "eager_ms": 9.2293,
+    "compile_ms": 4.4204,
+    "compile_speedup": 2.0879
+  },
+  {
+    "problem": "92_cumsum_exclusive",
+    "error": null,
+    "eager_ms": 8.5281,
+    "compile_ms": 3.231,
+    "compile_speedup": 2.6395
+  },
+  {
+    "problem": "93_masked_cumsum",
+    "error": null,
+    "eager_ms": 7.4326,
+    "compile_ms": 3.1502,
+    "compile_speedup": 2.3594
+  },
+  {
+    "problem": "94_MSELoss",
+    "error": null,
+    "eager_ms": 3.7376,
+    "compile_ms": 4.7746,
+    "compile_speedup": 0.7828
+  },
+  {
+    "problem": "95_CrossEntropyLoss",
+    "error": null,
+    "eager_ms": 0.3652,
+    "compile_ms": 0.3212,
+    "compile_speedup": 1.137
+  },
+  {
+    "problem": "96_HuberLoss",
+    "error": null,
+    "eager_ms": 2.4835,
+    "compile_ms": 4.7785,
+    "compile_speedup": 0.5197
+  },
+  {
+    "problem": "97_ScaledDotProductAttention",
+    "error": null,
+    "eager_ms": 16.831,
+    "compile_ms": 19.324,
+    "compile_speedup": 0.871
+  },
+  {
+    "problem": "98_KLDivLoss",
+    "error": null,
+    "eager_ms": 1.7808,
+    "compile_ms": 1.4491,
+    "compile_speedup": 1.2289
+  },
+  {
+    "problem": "99_TripletMarginLoss",
+    "error": null,
+    "eager_ms": 2.0071,
+    "compile_ms": 1.8,
+    "compile_speedup": 1.1151
+  },
+  {
+    "problem": "9_Tall_skinny_matrix_multiplication_",
+    "error": null,
+    "eager_ms": 1.9692,
+    "compile_ms": 1.7306,
+    "compile_speedup": 1.1379
+  }
+]

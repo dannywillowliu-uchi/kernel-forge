@@ -21,6 +21,7 @@ from kernel_forge.core.types import (
 	KernelProblem,
 	OptimizationGoal,
 )
+from kernel_forge.eval.scorecard import get_gap_context_for_problem, load_baselines
 from kernel_forge.knowledge.classifier import analyze_traits
 from kernel_forge.knowledge.experience import ExperienceRecord, ExperienceStore
 from kernel_forge.knowledge.learnings import LearningsManager
@@ -168,6 +169,19 @@ class Orchestrator:
 					len(triton_examples),
 				)
 
+		# Load baselines for gap context
+		async with tracker.span("load_baselines") as s:
+			baselines_path = (
+				self._config.knowledge_dir / "baselines_b200.json"
+			)
+			baselines = load_baselines(baselines_path)
+			gap_ctx = get_gap_context_for_problem(
+				problem.name, baselines
+			)
+			s.set("has_gap_context", bool(gap_ctx))
+			if gap_ctx:
+				logger.info("[GAP] %s", gap_ctx[:150])
+
 		# Experience (advisory)
 		async with tracker.span("experience_query") as s:
 			experience_ctx = self._experience.build_advisory_context(
@@ -176,16 +190,22 @@ class Orchestrator:
 			)
 			s.set("has_context", bool(experience_ctx))
 
-		# Agent optimization
+		# Agent optimization -- full context injection
 		async with tracker.span("agent_optimize") as s:
 			logger.info("[AGENT] Launching autonomous optimization...")
+
+			# Combine roofline + gap into one context block
+			full_roofline = roofline_ctx
+			if gap_ctx:
+				full_roofline += "\n\n" + gap_ctx
+
 			agent_result = await self._agent.optimize(
 				problem_name=problem.name,
 				problem_source=problem.reference_source,
 				baseline_ms=baseline_ms,
 				experience_context=experience_ctx,
 				traits_summary=traits.summary(),
-				roofline_context=roofline_ctx,
+				roofline_context=full_roofline,
 				distilled_guide=distilled_guide,
 				triton_examples=triton_examples,
 				gpu_id=self._config.hardware.gpu_id,
