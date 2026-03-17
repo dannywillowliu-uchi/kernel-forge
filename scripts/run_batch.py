@@ -12,7 +12,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -214,6 +213,6 @@ if __name__ == "__main__":
 	prompt_file.parent.mkdir(parents=True, exist_ok=True)
 	prompt_file.write_text(prompt)
 	print(f"Prompt saved to {prompt_file}")
-	print(f"\nTo run: copy prompt and launch as subagent")
-	print(f"After results, run:")
-	print(f"  uv run python scripts/run_batch.py --record <results.json>")
+	print("\nTo run: copy prompt and launch as subagent")
+	print("After results, run:")
+	print("  uv run python scripts/run_batch.py --record <results.json>")

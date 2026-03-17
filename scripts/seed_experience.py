@@ -8,9 +8,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from kernel_forge.harness.kernelbench import KernelBenchAdapter
 from kernel_forge.knowledge.classifier import analyze_traits
 from kernel_forge.knowledge.experience import ExperienceRecord, ExperienceStore
-from kernel_forge.harness.kernelbench import KernelBenchAdapter
 
 RESULTS = [
 	# Batch 1 (problems 1-5)

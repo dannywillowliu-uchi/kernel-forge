@@ -42,14 +42,18 @@ class ClaudeCodeAgent:
 		experience_context: str,
 		traits_summary: str,
 		roofline_context: str = "",
+		distilled_guide: str = "",
+		triton_examples: str = "",
 		gpu_id: int = 3,
 		max_attempts: int = 5,
 	) -> AgentResult:
 		"""Run the agent autonomously on a kernel problem.
 
-		The agent has full tool access: SSH to B200, benchmark,
-		profile, write kernels. It iterates until it closes the
-		gap between current performance and hardware peak.
+		Context layers injected:
+		1. Distilled guide: optimization patterns for this op type
+		2. Triton examples: real code for this op from KernelBook
+		3. Experience: results from similar problems we've run
+		4. Roofline: gap-to-peak analysis for this baseline
 		"""
 		problem_section = (
 			f"## Problem: {problem_name}\n\n"
@@ -66,10 +70,29 @@ class ClaudeCodeAgent:
 				f"**Your goal: close this gap.**\n"
 			)
 
+		# Layer 1: Distilled optimization guide for this op type
+		guide_section = ""
+		if distilled_guide:
+			guide_section = (
+				f"\n## Optimization Guide "
+				f"(from 4000+ community kernels)\n\n"
+				f"{distilled_guide}\n"
+			)
+
+		# Layer 2: Triton code examples for this op
+		examples_section = ""
+		if triton_examples:
+			examples_section = (
+				f"\n## Reference Triton Code "
+				f"(real examples from KernelBook)\n\n"
+				f"{triton_examples}\n"
+			)
+
 		traits_section = (
 			f"## Trait Analysis (advisory)\n{traits_summary}\n"
 		)
 
+		# Layer 3: Experience from similar problems
 		experience_section = ""
 		if experience_context:
 			experience_section = f"\n{experience_context}\n"
@@ -101,6 +124,8 @@ class ClaudeCodeAgent:
 			prompt_text + "\n\n"
 			+ problem_section
 			+ roofline_section
+			+ guide_section
+			+ examples_section
 			+ traits_section
 			+ experience_section
 			+ task_section

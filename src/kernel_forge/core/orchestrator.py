@@ -153,6 +153,21 @@ class Orchestrator:
 		if roofline_ctx:
 			logger.info("[ROOFLINE] %s", roofline_ctx[:200])
 
+		# Load distilled knowledge for this op type
+		async with tracker.span("load_knowledge") as s:
+			distilled_guide, triton_examples = (
+				self._load_distilled_knowledge(traits)
+			)
+			s.set("guide_chars", len(distilled_guide))
+			s.set("examples_chars", len(triton_examples))
+			if distilled_guide:
+				logger.info(
+					"[KNOWLEDGE] Loaded distilled guide "
+					"(%d chars) + examples (%d chars)",
+					len(distilled_guide),
+					len(triton_examples),
+				)
+
 		# Experience (advisory)
 		async with tracker.span("experience_query") as s:
 			experience_ctx = self._experience.build_advisory_context(
@@ -171,6 +186,8 @@ class Orchestrator:
 				experience_context=experience_ctx,
 				traits_summary=traits.summary(),
 				roofline_context=roofline_ctx,
+				distilled_guide=distilled_guide,
+				triton_examples=triton_examples,
 				gpu_id=self._config.hardware.gpu_id,
 			)
 			s.set("speedup", agent_result.speedup)
@@ -209,6 +226,65 @@ class Orchestrator:
 			json.dumps(summary, indent=2)
 		)
 		return summary
+
+	def _load_distilled_knowledge(
+		self, traits: object
+	) -> tuple[str, str]:
+		"""Load distilled guide + Triton examples for this op type.
+
+		Layer 1: Distilled guide from knowledge/distilled/<op>.md
+		Layer 2: Triton code examples from external/triton_examples_index.json
+		"""
+		distilled_dir = self._config.knowledge_dir / "distilled"
+		external_dir = self._config.knowledge_dir / "external"
+
+		# Layer 1: Find best matching distilled guide
+		guide = ""
+		if hasattr(traits, "dominant_ops") and traits.dominant_ops:
+			# Map trait ops to distilled file names
+			op_to_file = {
+				"matmul": "matmul",
+				"conv": "conv",
+				"attention": "attention",
+				"softmax": "softmax",
+				"norm": "norm",
+				"elementwise": "elementwise",
+				"reduction": "reduce",
+				"loss": "other",
+				"pooling": "pooling",
+				"indexing": "reduce",
+				"cumulative": "reduce",
+			}
+			for op in traits.dominant_ops:
+				fname = op_to_file.get(op, op)
+				guide_path = distilled_dir / f"{fname}.md"
+				if guide_path.exists():
+					content = guide_path.read_text()
+					if len(content) > 100:
+						guide = content[:8000]  # cap at ~2K tokens
+						break
+
+		# Layer 2: Triton examples
+		examples = ""
+		index_path = external_dir / "triton_examples_index.json"
+		if index_path.exists() and hasattr(traits, "dominant_ops"):
+			import json
+			index = json.loads(index_path.read_text())
+			for op in traits.dominant_ops:
+				if op in index:
+					ex_list = index[op]
+					parts = []
+					for ex in ex_list[:2]:  # max 2 examples
+						code = ex["code"][:2000]
+						parts.append(
+							f"### {ex['name']}\n```python\n"
+							f"{code}\n```"
+						)
+					if parts:
+						examples = "\n\n".join(parts)
+						break
+
+		return guide, examples
 
 	def _compute_roofline_context(
 		self,
