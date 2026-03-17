@@ -143,6 +143,16 @@ class Orchestrator:
 
 		logger.info("[TRAITS] %s", traits.summary())
 
+		# Roofline analysis on baseline
+		async with tracker.span("roofline_analysis") as s:
+			roofline_ctx = self._compute_roofline_context(
+				problem, traits, baseline_ms
+			)
+			s.set("roofline", roofline_ctx[:200])
+
+		if roofline_ctx:
+			logger.info("[ROOFLINE] %s", roofline_ctx[:200])
+
 		# Experience (advisory)
 		async with tracker.span("experience_query") as s:
 			experience_ctx = self._experience.build_advisory_context(
@@ -160,6 +170,8 @@ class Orchestrator:
 				baseline_ms=baseline_ms,
 				experience_context=experience_ctx,
 				traits_summary=traits.summary(),
+				roofline_context=roofline_ctx,
+				gpu_id=self._config.hardware.gpu_id,
 			)
 			s.set("speedup", agent_result.speedup)
 			s.set("success", agent_result.success)
@@ -197,6 +209,100 @@ class Orchestrator:
 			json.dumps(summary, indent=2)
 		)
 		return summary
+
+	def _compute_roofline_context(
+		self,
+		problem: KernelProblem,
+		traits: object,
+		baseline_ms: float,
+	) -> str:
+		"""Compute roofline analysis and format as agent context."""
+		from kernel_forge.core.evaluate import compute_roofline
+		from kernel_forge.core.types import B200_PEAKS
+
+		# Estimate FLOPs and bytes from shapes
+		shapes = problem.input_shapes
+		flops = 0.0
+		bytes_moved = 0.0
+
+		if shapes:
+			dims = list(shapes.values())
+			# Matmul-like: 2*M*N*K
+			if (
+				len(dims) >= 2
+				and len(dims[0]) == 2
+				and len(dims[1]) == 2
+			):
+				m, k = dims[0]
+				_, n = dims[1]
+				flops = 2.0 * m * k * n
+				bytes_moved = (m * k + k * n + m * n) * 4.0
+			else:
+				# Elementwise/reduction estimate
+				total_elems = 0
+				for shape in dims:
+					elems = 1
+					for d in shape:
+						elems *= d
+					total_elems += elems
+				flops = float(total_elems)
+				bytes_moved = total_elems * 4.0 * 2  # read + write
+
+		if flops <= 0 or bytes_moved <= 0:
+			return (
+				f"Baseline: {baseline_ms:.4f} ms. "
+				f"Could not estimate FLOPs/bytes from shapes. "
+				f"Use forge_roofline.py after computing FLOPs."
+			)
+
+		arith_intensity = flops / bytes_moved
+		lines = []
+
+		# Analyze at multiple precision tiers
+		for precision, label in [
+			("fp32", "FP32 (CUDA cores)"),
+			("tf32", "TF32 (tensor cores)"),
+			("bf16", "BF16 (tensor cores)"),
+		]:
+			r = compute_roofline(
+				baseline_ms, flops, bytes_moved, precision
+			)
+			lines.append(
+				f"- {label}: {r.achieved_tflops:.1f} / "
+				f"{r.peak_tflops:.0f} TFLOPS = "
+				f"**{r.utilization_pct:.1f}%** utilization, "
+				f"{r.headroom_pct:.1f}% headroom"
+			)
+
+		# Compute theoretical best times
+		peak_tf32 = B200_PEAKS.tf32_tflops * 1e12
+		peak_bf16 = B200_PEAKS.bf16_tflops * 1e12
+		peak_bw = B200_PEAKS.hbm_bandwidth_tb_s * 1e12
+
+		compute_limit_tf32 = flops / peak_tf32 * 1000
+		compute_limit_bf16 = flops / peak_bf16 * 1000
+		bw_limit = bytes_moved / peak_bw * 1000
+
+		bound = "compute-bound" if arith_intensity > 120 else "memory-bound"
+
+		context = (
+			f"Baseline: {baseline_ms:.4f} ms\n"
+			f"FLOPs: {flops:.2e}, Bytes: {bytes_moved:.2e}\n"
+			f"Arithmetic intensity: {arith_intensity:.1f} FLOPs/byte "
+			f"(ridge=120.5) -> **{bound}**\n\n"
+			f"Utilization at current baseline:\n"
+			+ "\n".join(lines)
+			+ f"\n\nTheoretical limits:\n"
+			f"- Compute (TF32): {compute_limit_tf32:.4f} ms "
+			f"(potential {baseline_ms/compute_limit_tf32:.1f}x)\n"
+			f"- Compute (BF16): {compute_limit_bf16:.4f} ms "
+			f"(potential {baseline_ms/compute_limit_bf16:.1f}x)\n"
+			f"- Memory BW: {bw_limit:.4f} ms "
+			f"(potential {baseline_ms/bw_limit:.1f}x)\n"
+			f"- Achievable: min(compute, memory) = "
+			f"{max(compute_limit_tf32, bw_limit):.4f} ms for TF32"
+		)
+		return context
 
 	def _log_result(
 		self, result: AgentResult, run_dir: Path

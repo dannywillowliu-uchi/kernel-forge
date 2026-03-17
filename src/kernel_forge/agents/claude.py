@@ -41,19 +41,30 @@ class ClaudeCodeAgent:
 		baseline_ms: float,
 		experience_context: str,
 		traits_summary: str,
+		roofline_context: str = "",
+		gpu_id: int = 3,
 		max_attempts: int = 5,
 	) -> AgentResult:
 		"""Run the agent autonomously on a kernel problem.
 
 		The agent has full tool access: SSH to B200, benchmark,
-		profile, write kernels. It iterates until it finds the
-		best kernel it can within the turn budget.
+		profile, write kernels. It iterates until it closes the
+		gap between current performance and hardware peak.
 		"""
 		problem_section = (
 			f"## Problem: {problem_name}\n\n"
-			f"Reference implementation:\n```python\n{problem_source}\n```\n\n"
+			f"Reference implementation:\n```python\n"
+			f"{problem_source}\n```\n\n"
 			f"Baseline runtime: {baseline_ms:.4f} ms\n"
 		)
+
+		roofline_section = ""
+		if roofline_context:
+			roofline_section = (
+				f"\n## Baseline Roofline Position\n\n"
+				f"{roofline_context}\n\n"
+				f"**Your goal: close this gap.**\n"
+			)
 
 		traits_section = (
 			f"## Trait Analysis (advisory)\n{traits_summary}\n"
@@ -65,19 +76,31 @@ class ClaudeCodeAgent:
 
 		task_section = (
 			f"\n## Your Task\n\n"
-			f"Optimize the kernel above. The reference runs at "
-			f"{baseline_ms:.4f} ms on B200 GPU 2.\n\n"
-			f"1. Profile the baseline with ncu to understand the bottleneck\n"
-			f"2. Write an optimized kernel in kernels/{problem_name}_opt.py\n"
-			f"3. Test correctness and benchmark\n"
-			f"4. Profile your kernel to see where you are on the roofline\n"
-			f"5. Iterate to improve\n"
-			f"6. When done, output BEST_KERNEL_PATH, BEST_SPEEDUP, APPROACH\n"
+			f"Close the gap between current performance and "
+			f"hardware peak on B200 GPU {gpu_id}.\n\n"
+			f"Follow the gap-driven loop:\n"
+			f"1. MEASURE: baseline is {baseline_ms:.4f} ms\n"
+			f"2. POSITION: compute roofline (use the data above "
+			f"or run forge_roofline.py)\n"
+			f"3. DIAGNOSE: what's causing the gap? Profile if "
+			f"needed.\n"
+			f"4. ACT: write kernel targeting the bottleneck -> "
+			f"kernels/{problem_name}_opt.py\n"
+			f"5. RE-MEASURE: test correctness + benchmark\n"
+			f"6. RE-POSITION: roofline again. Did utilization "
+			f"improve?\n"
+			f"7. DECIDE: gap > 10%? iterate. gap < 10%? stop.\n"
+		)
+
+		# Replace {gpu_id} in agent prompt
+		prompt_text = self._agent_prompt.replace(
+			"{gpu_id}", str(gpu_id)
 		)
 
 		full_prompt = (
-			self._agent_prompt + "\n\n"
+			prompt_text + "\n\n"
 			+ problem_section
+			+ roofline_section
 			+ traits_section
 			+ experience_section
 			+ task_section
@@ -189,7 +212,10 @@ class ClaudeCodeAgent:
 		# Parse extended fields
 		why_match = re.search(r"WHY_IT_WORKED:\s*(.+)", output)
 		failed_match = re.search(r"WHAT_FAILED:\s*(.+)", output)
-		# Find inline TOOL_REQUEST: lines throughout output
+		util_match = re.search(
+			r"FINAL_UTILIZATION:\s*([\d.]+)", output
+		)
+		gap_match = re.search(r"GAP_REMAINING:\s*(.+)", output)
 		tool_requests = re.findall(
 			r"TOOL_REQUEST:\s*(.+)", output
 		)
@@ -198,6 +224,13 @@ class ClaudeCodeAgent:
 			kernel_path=kernel_path,
 			speedup=speedup,
 			approach=approach,
+			final_utilization=(
+				float(util_match.group(1))
+				if util_match else 0.0
+			),
+			gap_remaining=(
+				gap_match.group(1).strip() if gap_match else ""
+			),
 			why_it_worked=(
 				why_match.group(1).strip() if why_match else ""
 			),
@@ -218,6 +251,8 @@ class AgentResult:
 		kernel_path: str = "",
 		speedup: float = 0.0,
 		approach: str = "",
+		final_utilization: float = 0.0,
+		gap_remaining: str = "",
 		why_it_worked: str = "",
 		what_failed: str = "",
 		tool_requests: list[str] | None = None,
@@ -227,6 +262,8 @@ class AgentResult:
 		self.kernel_path = kernel_path
 		self.speedup = speedup
 		self.approach = approach
+		self.final_utilization = final_utilization
+		self.gap_remaining = gap_remaining
 		self.why_it_worked = why_it_worked
 		self.what_failed = what_failed
 		self.tool_requests = tool_requests or []
