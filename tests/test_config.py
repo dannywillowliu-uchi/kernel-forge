@@ -29,7 +29,7 @@ class TestHardwareConfig:
 		hw = HardwareConfig()
 		wrapped = hw.wrap_remote_command("python train.py")
 		assert "cd ~/kernel-forge-workspace" in wrapped
-		assert "source env/bin/activate" in wrapped
+		assert "CUDA_HOME" in wrapped
 		assert "CUDA_VISIBLE_DEVICES=2" in wrapped
 		assert "python train.py" in wrapped
 

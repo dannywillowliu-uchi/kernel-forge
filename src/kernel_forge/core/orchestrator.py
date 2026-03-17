@@ -1,10 +1,10 @@
-"""Orchestrator: manages budget, experience, and agent lifecycle.
+"""Orchestrator: manages budget, experience, telemetry, and agent lifecycle.
 
 The agent does the actual optimization (profiling, kernel generation,
 benchmarking, iteration). The orchestrator handles:
 - Problem setup (baseline, trait analysis)
 - Experience loading and recording
-- Budget/termination management
+- Telemetry tracking (timing, tokens, GPU time)
 - Run directory and logging
 """
 
@@ -14,8 +14,9 @@ import json
 import logging
 from pathlib import Path
 
-from kernel_forge.agents.claude import ClaudeCodeAgent
+from kernel_forge.agents.claude import AgentResult, ClaudeCodeAgent
 from kernel_forge.config import ForgeConfig
+from kernel_forge.core.telemetry import RunTracker
 from kernel_forge.core.types import (
 	KernelProblem,
 	OptimizationGoal,
@@ -45,11 +46,16 @@ class Orchestrator:
 	) -> None:
 		self._executor = executor
 		self._config = config
-		self._agent = agent or ClaudeCodeAgent()
-		self._experience = experience or ExperienceStore(
-			config.knowledge_dir / "experience"
+		self._agent = agent or ClaudeCodeAgent(
+			model=config.agent.model,
+			max_turns=config.agent.max_turns,
 		)
-		self._learnings = learnings or LearningsManager(config.knowledge_dir)
+		self._experience = experience or ExperienceStore(
+			config.experience.store_path
+		)
+		self._learnings = learnings or LearningsManager(
+			config.knowledge_dir
+		)
 		self._gpu_guard = GpuGuard(
 			executor,
 			gpu_id=config.hardware.gpu_id,
@@ -80,110 +86,103 @@ class Orchestrator:
 		goal: OptimizationGoal,
 		run_dir: Path,
 	) -> dict:
-		"""Run the agent on a kernel problem.
+		"""Run the agent on a kernel problem with full telemetry."""
+		tracker = RunTracker(problem.name)
 
-		1. Check GPU, baseline, analyze traits
-		2. Load experience as advisory context
-		3. Let the agent optimize autonomously
-		4. Record experience from the run
-		"""
 		logger.info(
 			"=== %s (goal=%s) ===",
 			problem.name, goal.primary,
 		)
 
 		# GPU check
-		if not await self._check_gpu():
-			return {"problem": problem.name, "error": "GPU unavailable"}
+		async with tracker.span("gpu_check"):
+			if not await self._check_gpu():
+				return {
+					"problem": problem.name,
+					"error": "GPU unavailable",
+				}
 
 		# Baseline
-		logger.info("[BASELINE] Benchmarking reference...")
-		prob_path = self._problem_path(problem)
-		result = await self._run_harness(f"baseline {prob_path}")
-		if not result.success:
-			logger.error("Baseline failed: %s", result.stderr)
-			return {"problem": problem.name, "error": "Baseline failed"}
-
-		try:
-			baseline_ms = float(json.loads(result.stdout.strip())["baseline_ms"])
-		except (json.JSONDecodeError, KeyError):
-			logger.error("Could not parse baseline: %s", result.stdout)
-			return {"problem": problem.name, "error": "Baseline parse failed"}
+		async with tracker.span("baseline") as s:
+			logger.info("[BASELINE] Benchmarking reference...")
+			prob_path = self._problem_path(problem)
+			result = await self._run_harness(
+				f"baseline {prob_path}"
+			)
+			if not result.success:
+				logger.error("Baseline failed: %s", result.stderr)
+				return {
+					"problem": problem.name,
+					"error": "Baseline failed",
+				}
+			try:
+				baseline_ms = float(
+					json.loads(result.stdout.strip())["baseline_ms"]
+				)
+			except (json.JSONDecodeError, KeyError):
+				logger.error(
+					"Could not parse baseline: %s", result.stdout
+				)
+				return {
+					"problem": problem.name,
+					"error": "Baseline parse failed",
+				}
+			s.set("baseline_ms", baseline_ms)
+			tracker.record_gpu_time(baseline_ms)
 
 		logger.info("[BASELINE] %.4f ms", baseline_ms)
 
 		# Trait analysis
-		traits = analyze_traits(
-			problem.name,
-			problem.reference_source,
-			problem.input_shapes,
-		)
+		async with tracker.span("trait_analysis") as s:
+			traits = analyze_traits(
+				problem.name,
+				problem.reference_source,
+				problem.input_shapes,
+			)
+			s.set("traits", traits.summary())
+
 		logger.info("[TRAITS] %s", traits.summary())
 
 		# Experience (advisory)
-		experience_ctx = self._experience.build_advisory_context(
-			traits, max_tokens=4000
-		)
-
-		# Let the agent optimize
-		logger.info("[AGENT] Launching autonomous optimization...")
-		agent_result = await self._agent.optimize(
-			problem_name=problem.name,
-			problem_source=problem.reference_source,
-			baseline_ms=baseline_ms,
-			experience_context=experience_ctx,
-			traits_summary=traits.summary(),
-		)
-
-		# Save agent output
-		(run_dir / "agent_output.txt").write_text(agent_result.raw_output)
-
-		# Log result
-		if agent_result.success:
-			logger.info(
-				"[RESULT] %.3fx speedup via: %s",
-				agent_result.speedup,
-				agent_result.approach,
+		async with tracker.span("experience_query") as s:
+			experience_ctx = self._experience.build_advisory_context(
+				traits,
+				max_tokens=self._config.experience.max_context_tokens,
 			)
-			if agent_result.why_it_worked:
-				logger.info("[WHY] %s", agent_result.why_it_worked)
-		else:
-			logger.info("[RESULT] No speedup achieved")
+			s.set("has_context", bool(experience_ctx))
 
-		# Log tool requests from the agent
-		if agent_result.tool_requests:
-			logger.info("[TOOL REQUESTS] Agent wants:")
-			for req in agent_result.tool_requests:
-				logger.info("  -> %s", req)
-			# Persist tool requests for review
-			requests_file = run_dir / "tool_requests.txt"
-			requests_file.write_text(
-				"\n".join(agent_result.tool_requests)
+		# Agent optimization
+		async with tracker.span("agent_optimize") as s:
+			logger.info("[AGENT] Launching autonomous optimization...")
+			agent_result = await self._agent.optimize(
+				problem_name=problem.name,
+				problem_source=problem.reference_source,
+				baseline_ms=baseline_ms,
+				experience_context=experience_ctx,
+				traits_summary=traits.summary(),
+			)
+			s.set("speedup", agent_result.speedup)
+			s.set("success", agent_result.success)
+			s.set("approach", agent_result.approach)
+			tracker.record_agent_call(
+				s.duration_ms if s.end_time > 0 else 0
 			)
 
-		# Record experience
-		self._experience.record(ExperienceRecord(
-			problem_name=problem.name,
-			dominant_ops=traits.dominant_ops,
-			strategy_name=agent_result.approach[:50] if agent_result.approach else "unknown",
-			approach_notes=agent_result.approach,
-			outcome="success" if agent_result.success else "no_improvement",
-			speedup=agent_result.speedup,
-			baseline_ms=baseline_ms,
-			optimized_ms=(
-				baseline_ms / agent_result.speedup
-				if agent_result.speedup > 0 else 0
-			),
-			bottleneck_type=traits.estimated_bottleneck,
-			roofline_utilization_pct=0.0,
-			root_cause=agent_result.approach,
-			has_data_reuse=traits.has_data_reuse,
-			shape_category=traits.shape_category,
-			estimated_bottleneck=traits.estimated_bottleneck,
-			input_shapes=problem.input_shapes,
-		))
+		# Save outputs
+		async with tracker.span("save_results"):
+			(run_dir / "agent_output.txt").write_text(
+				agent_result.raw_output
+			)
+			self._log_result(agent_result, run_dir)
+			self._record_experience(
+				agent_result, problem, traits, baseline_ms
+			)
 
-		# Summary
+		# Save telemetry
+		tracker.finish()
+		tracker.save(run_dir / "telemetry.json")
+		logger.info(tracker.report())
+
 		summary = {
 			"problem": problem.name,
 			"goal": goal.primary,
@@ -192,9 +191,60 @@ class Orchestrator:
 			"approach": agent_result.approach,
 			"kernel_path": agent_result.kernel_path,
 			"success": agent_result.success,
+			"telemetry": tracker.summary(),
 		}
 		(run_dir / "summary.json").write_text(
 			json.dumps(summary, indent=2)
 		)
-
 		return summary
+
+	def _log_result(
+		self, result: AgentResult, run_dir: Path
+	) -> None:
+		if result.success:
+			logger.info(
+				"[RESULT] %.3fx speedup via: %s",
+				result.speedup, result.approach,
+			)
+			if result.why_it_worked:
+				logger.info("[WHY] %s", result.why_it_worked)
+		else:
+			logger.info("[RESULT] No speedup achieved")
+
+		if result.tool_requests:
+			logger.info("[TOOL REQUESTS] Agent wants:")
+			for req in result.tool_requests:
+				logger.info("  -> %s", req)
+			(run_dir / "tool_requests.txt").write_text(
+				"\n".join(result.tool_requests)
+			)
+
+	def _record_experience(
+		self,
+		result: AgentResult,
+		problem: KernelProblem,
+		traits: object,
+		baseline_ms: float,
+	) -> None:
+		self._experience.record(ExperienceRecord(
+			problem_name=problem.name,
+			dominant_ops=traits.dominant_ops,
+			strategy_name=(
+				result.approach[:50] if result.approach else "unknown"
+			),
+			approach_notes=result.approach,
+			outcome="success" if result.success else "no_improvement",
+			speedup=result.speedup,
+			baseline_ms=baseline_ms,
+			optimized_ms=(
+				baseline_ms / result.speedup
+				if result.speedup > 0 else 0
+			),
+			bottleneck_type=traits.estimated_bottleneck,
+			roofline_utilization_pct=0.0,
+			root_cause=result.approach,
+			has_data_reuse=traits.has_data_reuse,
+			shape_category=traits.shape_category,
+			estimated_bottleneck=traits.estimated_bottleneck,
+			input_shapes=problem.input_shapes,
+		))

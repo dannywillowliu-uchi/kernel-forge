@@ -8,6 +8,7 @@ dependencies = [
 	"rich",
 	"asyncssh",
 	"aiosqlite",
+	"pyyaml",
 ]
 
 [project.optional-dependencies]

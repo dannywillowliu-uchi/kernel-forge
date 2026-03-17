@@ -1,0 +1,44 @@
+# Kernel Forge: Declarative Workflow Configuration
+# Swap any section without code changes.
+
+hardware:
+  ssh_host: b200-node
+  ssh_user: danny
+  gpu_id: 3
+  cuda_visible_devices: "3"
+  cuda_home: /usr/local/cuda-12.8
+  remote_workspace: ~/kernel-forge-workspace
+  command_timeout_seconds: 300
+  gpu_memory_threshold_mib: 2048
+
+agent:
+  model: opus
+  max_turns: 30
+  timeout_seconds: 900
+  permission_mode: bypassPermissions
+
+evaluation:
+  correctness_rtol: 1e-3
+  correctness_atol: 1e-3
+  roofline_headroom_threshold: 10.0
+  min_speedup_threshold: 1.0
+
+experience:
+  store_path: knowledge/experience
+  similarity_threshold: 0.3
+  max_context_tokens: 4000
+
+problems:
+  suite: kernelbench
+  level: 1
+  problems_dir: knowledge/kernelbench
+
+termination:
+  max_attempts: 5
+  max_cost_usd: 10.0
+  max_wall_time_seconds: 3600
+  max_consecutive_failures: 5
+  plateau_threshold: 0.02
+
+knowledge_dir: knowledge
+runs_dir: runs
