@@ -75,3 +75,6 @@ For memory-bound ops, kernel fusion is the dominant optimization: Softsign 5.24x
 
 ## [2026-03-16 21:00] batchnorm_eval_mode_trick
 BatchNorm in eval mode can be optimized by precomputing scale=weight*rsqrt(var+eps) and shift=bias-mean*scale, then running a single x*scale+shift kernel. 2.52x speedup.
+
+## [2026-03-17 21:00] layernorm_64x_beats_compile
+LayerNorm (16, 64, 256, 256): 64.1x over eager, 2.2x over torch.compile (29x). Custom Triton with 2-chunk partial stats + 2-chunk normalize. Key insight: torch.compile's auto-generated Triton is good but not optimal for very large normalized shapes (4.2M elements). Manual chunked reduction with tuned block sizes (BS=1024 for stats, BS=512 for normalize) achieves 0.14ms vs compile's 0.31ms. This is the first problem where we significantly beat torch.compile.
