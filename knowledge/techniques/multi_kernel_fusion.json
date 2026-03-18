@@ -1,0 +1,13 @@
+{
+  "name": "multi_kernel_fusion",
+  "description": "Fuse N separate CUDA kernel launches into 1 Triton kernel, eliminating N-1 intermediate HBM writes. Identify ops that PyTorch launches separately but could be one kernel.",
+  "when_to_apply": "Any operation where PyTorch eager launches multiple kernels for what is logically one operation. Common in: Softsign (abs+add+div=3 kernels), HingeLoss (mul+clamp+mean), Softplus (exp+log1p+threshold).",
+  "code_pattern": "triton",
+  "evidence": [
+    {"problem": "30_Softsign", "speedup": "5.24x", "detail": "3 kernels -> 1"},
+    {"problem": "100_HingeLoss", "speedup": "9.44x", "detail": "eliminated 2x 4GB intermediates"},
+    {"problem": "29_Softplus", "speedup": "2.21x"},
+    {"problem": "25_Swish", "speedup": "2.50x", "detail": "F.silu fuses x*sigmoid(x)"}
+  ],
+  "discovered_from": "Batch 4-5 elementwise optimization"
+}

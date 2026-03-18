@@ -1,0 +1,12 @@
+{
+  "name": "contiguous_removal",
+  "description": "Remove .contiguous() calls before matmul on transposed tensors. cuBLAS handles transposed inputs natively via transa/transb flags. The contiguous copy is pure overhead.",
+  "when_to_apply": "Any matmul with transposed inputs where .contiguous() is called before torch.matmul/mm/bmm.",
+  "code_pattern": "pytorch",
+  "evidence": [
+    {"problem": "16_Matmul_with_transposed_A", "speedup_contribution": "10.4x -> 15.3x", "detail": "+5x from removing contiguous"},
+    {"problem": "17_Matmul_with_transposed_B", "speedup": "13.83x"},
+    {"problem": "18_Matmul_with_transposed_both", "speedup": "15.18x"}
+  ],
+  "discovered_from": "Batch 3 matmul optimization"
+}

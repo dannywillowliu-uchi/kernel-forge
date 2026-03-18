@@ -1,0 +1,10 @@
+{
+  "name": "shape_padding_128",
+  "description": "Pad matrix dimensions to multiples of 128 before matmul. Tensor cores work on 128x128 tiles; irregular shapes waste computation at tile boundaries.",
+  "when_to_apply": "Matmul where M, N, or K is not a multiple of 128. Especially impactful for irregular shapes (prime numbers, odd dimensions).",
+  "code_pattern": "pytorch",
+  "evidence": [
+    {"problem": "8_Matmul_with_irregular_shapes_", "speedup_contribution": "2.1x -> 8.86x", "detail": "8205x2949x5921 padded to 128 multiples"}
+  ],
+  "discovered_from": "Batch 2 matmul optimization"
+}

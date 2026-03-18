@@ -1,0 +1,10 @@
+{
+  "name": "manual_sdpa_decomposition",
+  "description": "Replace torch.nn.functional.scaled_dot_product_attention with manual baddbmm+softmax+bmm. On B200, SDPA dispatches to sm80 cutlass FMHA kernel. Manual decomposition triggers sm100-native cuBLAS kernels.",
+  "when_to_apply": "Attention ops on B200 where SDPA uses non-native kernels. Check with ncu if the kernel name contains 'sm80'.",
+  "code_pattern": "pytorch",
+  "evidence": [
+    {"problem": "97_ScaledDotProductAttention", "speedup": "16.1x", "detail": "37ms -> 2.3ms via sm100 cuBLAS"}
+  ],
+  "discovered_from": "97_ScaledDotProductAttention optimization"
+}

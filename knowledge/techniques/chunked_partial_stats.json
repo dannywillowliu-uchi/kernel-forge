@@ -1,0 +1,10 @@
+{
+  "name": "chunked_partial_stats",
+  "description": "Process multiple chunks per Triton block for reduction, halving grid size and kernel launch overhead. Each block reads 2+ chunks sequentially instead of 1.",
+  "when_to_apply": "Large reductions (>1M elements) where single-chunk-per-block creates too many blocks. Memory-bound norms and reductions.",
+  "code_pattern": "triton",
+  "evidence": [
+    {"problem": "40_LayerNorm", "speedup_contribution": "52x -> 65.9x", "detail": "2-chunk stats + 2-chunk normalize"}
+  ],
+  "discovered_from": "40_LayerNorm optimization, v16-v19"
+}
