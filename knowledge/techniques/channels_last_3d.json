@@ -1,0 +1,12 @@
+{
+  "name": "channels_last_3d",
+  "description": "Convert 3D conv inputs to channels_last_3d memory format. cuDNN's NDHWC path is significantly faster than NCDHW for standard 3D convolutions on B200.",
+  "when_to_apply": "Standard 3D convolutions (not transposed). Especially effective for asymmetric inputs/kernels.",
+  "code_pattern": "pytorch",
+  "evidence": [
+    {"problem": "59_conv_standard_3D_asymmetric_sq", "speedup": "2.12x"},
+    {"problem": "60_conv_standard_3D_sq_asymmetric", "speedup": "2.75x"},
+    {"problem": "66_conv_standard_3D_asymmetric_asymmetric", "speedup": "2.73x"}
+  ],
+  "discovered_from": "Batch 57-66 conv optimization"
+}
