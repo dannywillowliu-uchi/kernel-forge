@@ -1,0 +1,13 @@
+{
+  "name": "compile_max_autotune_no_cudagraphs",
+  "description": "Use torch.compile(mode='max-autotune-no-cudagraphs') instead of 'max-autotune'. Standard max-autotune enables CUDA graph trees which are 3-5x SLOWER on reductions and large-tensor ops. The no-cudagraphs variant gets Triton autotuning benefits without graph overhead.",
+  "when_to_apply": "Reductions, large tensor ops (>1GB), any op where standard torch.compile is slower than eager. Especially sum/mean/max/min reductions over a dimension.",
+  "code_pattern": "pytorch",
+  "evidence": [
+    {"problem": "47_Sum_reduction", "speedup": "1.16x"},
+    {"problem": "48_Mean_reduction", "speedup": "1.17x"},
+    {"problem": "49_Max_reduction", "speedup": "1.51x"},
+    {"problem": "53_Min_reduction", "speedup": "1.52x"}
+  ],
+  "discovered_from": "Batch 47-56 optimization"
+}
