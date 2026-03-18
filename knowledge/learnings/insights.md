@@ -78,3 +78,9 @@ BatchNorm in eval mode can be optimized by precomputing scale=weight*rsqrt(var+e
 
 ## [2026-03-17 21:00] layernorm_64x_beats_compile
 LayerNorm (16, 64, 256, 256): 64.1x over eager, 2.2x over torch.compile (29x). Custom Triton with 2-chunk partial stats + 2-chunk normalize. Key insight: torch.compile's auto-generated Triton is good but not optimal for very large normalized shapes (4.2M elements). Manual chunked reduction with tuned block sizes (BS=1024 for stats, BS=512 for normalize) achieves 0.14ms vs compile's 0.31ms. This is the first problem where we significantly beat torch.compile.
+
+## [2026-03-17 23:00] hinge_loss_9.44x
+HingeLoss: 9.44x by fusing broadcast-multiply-clamp-reduce into single Triton kernel. Eliminated 2 large intermediate tensors (~4GB each). Single memory pass.
+
+## [2026-03-17 23:00] int32_overflow_triton
+Triton pointer arithmetic overflows with >2B elements. Problem 45 (4B elements) required int64 casting or batch-level grid decomposition.
