@@ -1,0 +1,11 @@
+{
+  "name": "channels_last_antipatterns",
+  "description": "channels_last memory format HURTS performance on: (1) depthwise convs with asymmetric kernels (3x7) -- 0.22x regression, (2) pointwise 1x1 convs on large spatial dims (1024x1024) -- 0.32x regression. Only use channels_last for standard/grouped convs, NOT depthwise or pointwise.",
+  "when_to_apply": "Check before applying channels_last to any conv -- verify it's not depthwise with asymmetric kernel or pointwise on large spatial.",
+  "code_pattern": "pytorch",
+  "evidence": [
+    {"problem": "85_conv_depthwise_2D_asymmetric", "result": "0.22x with channels_last"},
+    {"problem": "87_conv_pointwise_2D", "result": "0.32x with channels_last"}
+  ],
+  "discovered_from": "Batch 77-87 conv optimization"
+}
