@@ -1,0 +1,14 @@
+{
+  "problem": "25_Swish",
+  "speedup": 2.5,
+  "approach": "F.silu fuses 2 kernels into 1",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "elementwise"
+    ],
+    "estimated_bottleneck": "memory_bound",
+    "has_data_reuse": false,
+    "shape_category": "large"
+  }
+}

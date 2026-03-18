@@ -1,0 +1,14 @@
+{
+  "problem": "16_Matmul_with_transposed_A",
+  "speedup": 15.3,
+  "approach": "TF32, removed .contiguous()",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

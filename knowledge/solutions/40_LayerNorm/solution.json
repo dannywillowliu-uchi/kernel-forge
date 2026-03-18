@@ -1,0 +1,14 @@
+{
+  "problem": "40_LayerNorm",
+  "speedup": 65.9,
+  "approach": "Custom Triton 2-chunk partial stats + 2-chunk normalize",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "norm"
+    ],
+    "estimated_bottleneck": "memory_bound",
+    "has_data_reuse": false,
+    "shape_category": "large"
+  }
+}

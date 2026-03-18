@@ -1,0 +1,14 @@
+{
+  "problem": "8_Matmul_with_irregular_shapes_",
+  "speedup": 8.86,
+  "approach": "TF32 + pad to 128",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

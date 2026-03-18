@@ -1,0 +1,14 @@
+{
+  "problem": "97_ScaledDotProductAttention",
+  "speedup": 16.1,
+  "approach": "Manual decomposition + sm100 cuBLAS + TF32",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "attention"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

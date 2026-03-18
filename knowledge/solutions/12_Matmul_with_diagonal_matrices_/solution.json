@@ -1,0 +1,14 @@
+{
+  "problem": "12_Matmul_with_diagonal_matrices_",
+  "speedup": 2.28,
+  "approach": "Triton fused diag*B",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

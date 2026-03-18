@@ -1,0 +1,14 @@
+{
+  "problem": "22_Tanh",
+  "speedup": 1.01,
+  "approach": "Bandwidth ceiling single op",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "elementwise"
+    ],
+    "estimated_bottleneck": "memory_bound",
+    "has_data_reuse": false,
+    "shape_category": "large"
+  }
+}

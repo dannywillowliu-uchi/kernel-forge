@@ -1,0 +1,14 @@
+{
+  "problem": "10_3D_tensor_matrix_multiplication",
+  "speedup": 12.22,
+  "approach": "TF32",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

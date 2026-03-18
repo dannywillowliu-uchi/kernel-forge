@@ -1,0 +1,14 @@
+{
+  "problem": "7_Matmul_with_small_K_dimension_",
+  "speedup": 4.42,
+  "approach": "TF32",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "medium"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "problem": "3_Batched_matrix_multiplication",
+  "speedup": 10.81,
+  "approach": "TF32 tensor cores",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

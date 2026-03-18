@@ -1,0 +1,14 @@
+{
+  "problem": "14_Matmul_for_upper_triangular_matrices",
+  "speedup": 10.76,
+  "approach": "TF32 + triu",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

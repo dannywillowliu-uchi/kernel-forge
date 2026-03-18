@@ -25,6 +25,7 @@ from kernel_forge.eval.scorecard import get_gap_context_for_problem, load_baseli
 from kernel_forge.knowledge.classifier import analyze_traits
 from kernel_forge.knowledge.experience import ExperienceRecord, ExperienceStore
 from kernel_forge.knowledge.learnings import LearningsManager
+from kernel_forge.knowledge.solutions import SolutionStore
 from kernel_forge.remote.executor import CommandResult, Executor
 from kernel_forge.remote.gpu_guard import GpuGuard
 
@@ -44,6 +45,7 @@ class Orchestrator:
 		agent: ClaudeCodeAgent | None = None,
 		experience: ExperienceStore | None = None,
 		learnings: LearningsManager | None = None,
+		solutions: SolutionStore | None = None,
 	) -> None:
 		self._executor = executor
 		self._config = config
@@ -56,6 +58,9 @@ class Orchestrator:
 		)
 		self._learnings = learnings or LearningsManager(
 			config.knowledge_dir
+		)
+		self._solutions = solutions or SolutionStore(
+			config.knowledge_dir / "solutions"
 		)
 		self._gpu_guard = GpuGuard(
 			executor,
@@ -169,6 +174,42 @@ class Orchestrator:
 					len(triton_examples),
 				)
 
+		# Load winning solutions from similar problems
+		async with tracker.span("load_solutions") as s:
+			similar_solutions = (
+				self._solutions.get_winning_kernel_for_similar(
+					traits, top_k=2
+				)
+			)
+			similar_code = ""
+			if similar_solutions:
+				parts = []
+				for sol in similar_solutions:
+					code_preview = sol.winning_kernel[:2000]
+					parts.append(
+						f"### {sol.problem} "
+						f"({sol.speedup:.1f}x)\n"
+						f"Approach: {sol.approach}\n"
+						f"```python\n{code_preview}\n```"
+					)
+				similar_code = (
+					"## Winning kernels from similar problems "
+					"(reference code)\n\n"
+					+ "\n\n".join(parts)
+				)
+				logger.info(
+					"[SOLUTIONS] %d similar solutions loaded",
+					len(similar_solutions),
+				)
+			s.set("num_solutions", len(similar_solutions))
+
+		# Append similar solutions to triton examples
+		if similar_code:
+			triton_examples = (
+				triton_examples + "\n\n" + similar_code
+				if triton_examples else similar_code
+			)
+
 		# Load baselines for gap context
 		async with tracker.span("load_baselines") as s:
 			baselines_path = (
@@ -217,7 +258,7 @@ class Orchestrator:
 				s.duration_ms if s.end_time > 0 else 0
 			)
 
-		# Save outputs
+		# Save outputs + winning solution
 		async with tracker.span("save_results"):
 			(run_dir / "agent_output.txt").write_text(
 				agent_result.raw_output
@@ -226,6 +267,11 @@ class Orchestrator:
 			self._record_experience(
 				agent_result, problem, traits, baseline_ms
 			)
+			# Pull winning kernel from B200 and save
+			if agent_result.success and agent_result.kernel_path:
+				await self._save_winning_solution(
+					agent_result, problem, traits, baseline_ms
+				)
 
 		# Save telemetry
 		tracker.finish()
@@ -399,6 +445,61 @@ class Orchestrator:
 			f"{max(compute_limit_tf32, bw_limit):.4f} ms for TF32"
 		)
 		return context
+
+	async def _save_winning_solution(
+		self,
+		result: AgentResult,
+		problem: KernelProblem,
+		traits: object,
+		baseline_ms: float,
+	) -> None:
+		"""Pull winning kernel from B200 and save to solution store."""
+		from kernel_forge.knowledge.solutions import Solution
+
+		# Try to read kernel from remote
+		kernel_path = result.kernel_path
+		if not kernel_path:
+			return
+
+		read_result = await self._executor.run(
+			f"cat {kernel_path}", timeout=10
+		)
+		if not read_result.success:
+			logger.warning(
+				"Could not read winning kernel: %s",
+				kernel_path,
+			)
+			return
+
+		solution = Solution(
+			problem=problem.name,
+			winning_kernel=read_result.stdout,
+			speedup=result.speedup,
+			approach=result.approach,
+			hardware="b200",
+			traits={
+				"dominant_ops": (
+					traits.dominant_ops
+					if hasattr(traits, "dominant_ops") else []
+				),
+				"estimated_bottleneck": (
+					traits.estimated_bottleneck
+					if hasattr(traits, "estimated_bottleneck")
+					else "unknown"
+				),
+				"has_data_reuse": (
+					traits.has_data_reuse
+					if hasattr(traits, "has_data_reuse")
+					else False
+				),
+				"shape_category": (
+					traits.shape_category
+					if hasattr(traits, "shape_category")
+					else "unknown"
+				),
+			},
+		)
+		self._solutions.save(solution)
 
 	def _log_result(
 		self, result: AgentResult, run_dir: Path

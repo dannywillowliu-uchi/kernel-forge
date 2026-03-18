@@ -1,0 +1,14 @@
+{
+  "problem": "15_Matmul_for_lower_triangular_matrices",
+  "speedup": 10.68,
+  "approach": "TF32 + tril",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "large"
+  }
+}

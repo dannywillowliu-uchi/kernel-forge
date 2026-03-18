@@ -1,0 +1,14 @@
+{
+  "problem": "9_Tall_skinny_matrix_multiplication_",
+  "speedup": 2.82,
+  "approach": "TF32",
+  "hardware": "b200",
+  "traits": {
+    "dominant_ops": [
+      "matmul"
+    ],
+    "estimated_bottleneck": "compute_bound",
+    "has_data_reuse": true,
+    "shape_category": "medium"
+  }
+}
