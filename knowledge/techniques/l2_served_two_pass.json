@@ -1,0 +1,11 @@
+{
+  "name": "l2_served_two_pass",
+  "description": "For reductions with moderate dimension (32-128), a two-pass approach (pass1: compute stats, pass2: normalize) is FASTER than single-pass despite 2x logical reads. The register savings from not holding all values enable higher occupancy, and L2 cache serves the re-reads at near-zero HBM cost.",
+  "when_to_apply": "When reduction dimension is 32-128 elements. Single-pass requires holding all values in registers (kills occupancy). Two-pass uses L2 for re-reads. NOT useful when reduction dim is very large (L2 can't hold the data) or very small (registers are fine).",
+  "code_pattern": "cuda",
+  "evidence": [
+    {"problem": "36_RMSNorm_", "result": "2.22ms two-pass vs 2.54ms single-pass", "detail": "L2 hit rate ~100% on pass 2 for C=64"},
+    {"problem": "40_LayerNorm", "result": "Also used two-pass successfully (65.9x)"}
+  ],
+  "discovered_from": "Deep RMSNorm optimization"
+}

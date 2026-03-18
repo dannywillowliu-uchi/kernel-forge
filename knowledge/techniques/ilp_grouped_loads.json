@@ -1,0 +1,10 @@
+{
+  "name": "ilp_grouped_loads",
+  "description": "Load N values simultaneously into registers for instruction-level parallelism in memory-bound kernels with strided access. 8-wide is the sweet spot on B200: enough in-flight requests to saturate HBM, without killing occupancy via register pressure. Use __launch_bounds__ to control occupancy tradeoff.",
+  "when_to_apply": "Memory-bound kernels with strided access patterns (e.g., reducing over channels in NCHW layout where each channel is far apart in memory). Also useful for any reduction where the stride is >>128 bytes.",
+  "code_pattern": "cuda",
+  "evidence": [
+    {"problem": "36_RMSNorm_", "speedup": "3.99x", "bandwidth": "84.6% of 8 TB/s", "detail": "8-wide ILP + __launch_bounds__(256,2)"}
+  ],
+  "discovered_from": "Deep RMSNorm optimization, 100 tool calls"
+}
