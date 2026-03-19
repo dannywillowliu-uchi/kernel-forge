@@ -99,9 +99,20 @@ module = load_inline(
 - `tl.dot(a, b)` -- standard matmul
 - `tl.dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc=None, out_dtype=tl.float32)` -- **FP4/FP8 scaled matmul with tensor cores**
   - `lhs_format`/`rhs_format`: `"e2m1"` for FP4, `"e4m3"` for FP8
-  - Scales are per-block (16 elements)
-  - See `knowledge/cuda_patterns/triton_dot_scaled.py` for complete example
-- **NOT available in Triton 3.6:** `TensorDescriptor`, `triton.tools.experimental_descriptor`, `triton._C.libtriton.nvidia.cublas.CublasLt.block_scaled_matmul_nvfp4`
+  - Scales are per-block (16 for NVFP4, 32 for MXFP4)
+- `from triton.tools.tensor_descriptor import TensorDescriptor` -- **TMA descriptors for async bulk copies** (AVAILABLE in 3.6)
+- `from triton.tools.mxfp import MXFP4Tensor, MXScaleTensor` -- **FP4 tensor helpers** (AVAILABLE)
+- `triton.experimental.gluon.language.nvidia.blackwell.tma` -- Blackwell TMA module
+- **WRONG import (common mistake):** `triton.tools.experimental_descriptor` does NOT exist. Use `triton.tools.tensor_descriptor`.
+
+### Inspection & Debugging Tools
+- **PTX inspection:** `python3 harness/forge_ptx.py <module.so>` -- verify tensor core instructions
+- **SASS inspection:** `python3 harness/forge_ptx.py <module.so> --sass`
+- **Tensor core check:** `python3 harness/forge_ptx.py <module.so> --check-tc`
+- **cuobjdump:** `/usr/bin/cuobjdump -ptx/-sass <binary>`
+- **nvdisasm:** `/usr/bin/nvdisasm <cubin>`
+- **compute-sanitizer:** `/usr/bin/compute-sanitizer python3 <script>` -- memory/race checking
+- **Autotune sweep:** `python3 harness/forge_autotune.py <script> --param BLOCK_M=64,128,256 --param num_warps=4,8`
 
 ### CUDA Capabilities
 When writing raw CUDA, you have access to:
