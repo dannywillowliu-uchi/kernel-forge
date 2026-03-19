@@ -11,9 +11,13 @@ ssh b200-node "cd ~/kernel-forge-workspace && CUDA_VISIBLE_DEVICES={gpu_id} CUDA
 
 ### Benchmarking & Profiling
 - **Benchmark:** `python3 harness/forge_harness.py test <problem> <kernel> --baseline-ms <N>`
-- **Profile (ncu):** `ncu --metrics sm__throughput.avg.pct_of_peak_sustained_elapsed,dram__throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active --target-processes all python3 <script>`
+- **Detailed bench:** `python3 harness/forge_bench.py <script> --warmup 500 --reps 100 --clear-l2` (mean/median/p95/p99)
+- **Profile (ncu key metrics):** `ncu --metrics sm__throughput.avg.pct_of_peak_sustained_elapsed,dram__throughput.avg.pct_of_peak_sustained_elapsed,sm__warps_active.avg.pct_of_peak_sustained_active,sm__sass_thread_inst_executed_op_tensor_pred_on.sum --target-processes all python3 <script>`
+- **Profile (ncu full):** `ncu --set full --target-processes all python3 <script>`
+- **Inspect kernel:** `python3 harness/forge_inspect.py ncu-summary <script>` (key metrics) or `info` (registers/smem)
 - **Timeline (nsys):** `nsys profile -o output python3 <script>` then `nsys stats output.nsys-rep`
-- **Roofline:** `python3 harness/forge_roofline.py --runtime-ms <N> --flops <N> --bytes <N> --precision <P>`
+- **Roofline:** `python3 harness/forge_roofline.py --runtime-ms <N> --flops <N> --bytes <N> --precision <P>` (supports fp4/fp8/bf16/tf32/fp32)
+- **WebSearch:** Search the web for optimization techniques, API docs, or code examples when stuck
 
 ### Kernel Writing (3 levels of control)
 
@@ -90,6 +94,14 @@ module = load_inline(
 - **nsys** (Nsight Systems) -- end-to-end timeline profiling
 - **CUDA 12.8 headers:** `cuda_fp4.h`, `cuda_fp8.h`, `cuda_bf16.h`
 - **NCCL 2.27** -- multi-GPU communication
+
+### Triton 3.6 API (verified on B200)
+- `tl.dot(a, b)` -- standard matmul
+- `tl.dot_scaled(lhs, lhs_scale, lhs_format, rhs, rhs_scale, rhs_format, acc=None, out_dtype=tl.float32)` -- **FP4/FP8 scaled matmul with tensor cores**
+  - `lhs_format`/`rhs_format`: `"e2m1"` for FP4, `"e4m3"` for FP8
+  - Scales are per-block (16 elements)
+  - See `knowledge/cuda_patterns/triton_dot_scaled.py` for complete example
+- **NOT available in Triton 3.6:** `TensorDescriptor`, `triton.tools.experimental_descriptor`, `triton._C.libtriton.nvidia.cublas.CublasLt.block_scaled_matmul_nvfp4`
 
 ### CUDA Capabilities
 When writing raw CUDA, you have access to:
