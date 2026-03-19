@@ -187,3 +187,109 @@ def list_problems(
 def report(problem_name: str) -> None:
 	"""Show optimization report for a problem."""
 	click.echo(f"Report for {problem_name} (not yet implemented)")
+
+
+@main.command()
+@click.argument("problem_name")
+@click.option("--gpu", default=3, help="GPU ID on B200.")
+@click.option(
+	"--problem-file", default=None,
+	help="Path to problem file (on B200 or local).",
+)
+@click.option(
+	"--instructions", default="",
+	help="Additional instructions for the agent.",
+)
+@click.option(
+	"--config", "config_path", default=None,
+	type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+	"--print-only", is_flag=True,
+	help="Print the prompt instead of saving to file.",
+)
+def solve(
+	problem_name: str,
+	gpu: int,
+	problem_file: str | None,
+	instructions: str,
+	config_path: Path | None,
+	print_only: bool,
+) -> None:
+	"""Generate a complete optimization prompt for any kernel problem.
+
+	The output prompt can be used as a subagent prompt in Claude Code,
+	or run via: claude -p "$(cat prompt.md)"
+
+	Examples:
+	    kernel-forge solve 36_RMSNorm_ --gpu 3
+	    kernel-forge solve my_problem --problem-file path/to/kernel.py
+	"""
+	from kernel_forge.config import default_config, load_config
+	from kernel_forge.solve import build_solve_prompt, save_prompt
+
+	if config_path:
+		config = load_config(config_path)
+	else:
+		config = default_config()
+
+	# Try to load problem source from KernelBench
+	problem_source = ""
+	if not problem_file:
+		from kernel_forge.harness.kernelbench import KernelBenchAdapter
+		adapter = KernelBenchAdapter(
+			config.knowledge_dir / "kernelbench"
+		)
+		problem = adapter.get_problem(problem_name)
+		if problem:
+			problem_source = problem.reference_source
+
+	prompt = build_solve_prompt(
+		problem_name=problem_name,
+		problem_source=problem_source,
+		problem_file=problem_file or "",
+		gpu_id=gpu,
+		config=config,
+		custom_instructions=instructions,
+	)
+
+	if print_only:
+		click.echo(prompt)
+	else:
+		path = save_prompt(prompt, problem_name)
+		click.echo(f"Prompt saved to: {path}")
+		click.echo(f"Prompt size: {len(prompt)} chars")
+		click.echo("")
+		click.echo("To run as subagent in Claude Code:")
+		click.echo(
+			f"  Use Agent tool with the content of {path}"
+		)
+		click.echo("")
+		click.echo("To run via CLI:")
+		click.echo(
+			f"  claude --permission-mode bypassPermissions "
+			f"-p \"$(cat {path})\" --model opus "
+			f"--max-turns 30 --output-format text"
+		)
+
+
+@main.command()
+def scorecard() -> None:
+	"""Show the evaluation scorecard vs baselines."""
+	from kernel_forge.config import default_config
+	from kernel_forge.eval.scorecard import (
+		compute_scorecard,
+		format_scorecard,
+		load_baselines,
+		load_our_results,
+	)
+
+	config = default_config()
+	baselines = load_baselines(
+		config.knowledge_dir / "baselines_b200.json"
+	)
+	results = load_our_results(
+		Path("knowledge/experience/records.jsonl")
+	)
+	card = compute_scorecard(baselines, results)
+	click.echo(format_scorecard(card))
