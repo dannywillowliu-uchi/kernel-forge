@@ -1,0 +1,10 @@
+{
+  "name": "nvfp4_gemm_skinny_optimization",
+  "description": "For NVFP4 GEMM with small M (128), PyTorch's default CUTLASS tile (256x192x256) wastes resources. Custom 128x128x256 tile with 1x1 cluster is 15% faster. cuBLASLt C API does NOT support NVFP4 -- PyTorch uses CUTLASS internally. CUDA Graphs save 2-3us launch overhead. out= parameter on _scaled_mm eliminates DtoD copy.",
+  "when_to_apply": "FP4 GEMM on B200 with small M dimension (M <= 256). Also applies to any _scaled_mm call where output copy is unnecessary.",
+  "code_pattern": "cuda",
+  "evidence": [
+    {"problem": "GPU MODE nvfp4_gemm", "improvement": "25us -> 11.1us geomean", "detail": "Custom CUTLASS tile + CUDA Graphs + out= parameter"}
+  ],
+  "discovered_from": "GPU MODE NVFP4 GEMM competition, 136 tool calls"
+}
