@@ -1,0 +1,12 @@
+{
+  "name": "nvfp4_gemm_b200_findings",
+  "description": "NVFP4 GEMM on B200: CUTLASS auto-scheduler already picks optimal schedule (KernelTmaWarpSpecialized1SmNvf4Sm100). Triton tl.dot_scaled works but is 22% slower. For M=128, only 56 blocks across 160 SMs = 35% utilization. Competition winner achieved ~10us, our 11.1us is within 10%. Speed-of-light targets (3.3us) are theoretical.",
+  "when_to_apply": "FP4 GEMM on B200 with small M. The SM underutilization is the fundamental limit for M<=128.",
+  "evidence": [
+    {"approach": "CUTLASS auto (V21)", "geomean": "11.1us"},
+    {"approach": "Triton tl.dot_scaled (V22)", "geomean": "13.5us"},
+    {"approach": "Triton warp_specialize (V26)", "geomean": "12.4us"},
+    {"approach": "Competition winner", "geomean": "~10us"}
+  ],
+  "discovered_from": "Two NVFP4 GEMM runs, 247 total tool calls"
+}
