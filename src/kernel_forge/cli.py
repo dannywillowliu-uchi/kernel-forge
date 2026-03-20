@@ -274,6 +274,88 @@ def solve(
 
 
 @main.command()
+@click.argument("problem_name")
+@click.option("--gpu", default=3, help="GPU ID on B200.")
+@click.option(
+	"--problem-dir", default=None,
+	help="Problem directory name on B200 (defaults to problem_name).",
+)
+@click.option("--max-hours", default=2.0, help="Max wall time in hours.")
+@click.option("--max-redirects", default=5, help="Max agent redirects.")
+@click.option(
+	"--config", "config_path", default=None,
+	type=click.Path(exists=True, path_type=Path),
+)
+@click.option(
+	"--print-only", is_flag=True,
+	help="Print the prompt instead of saving to file.",
+)
+def orchestrate(
+	problem_name: str,
+	gpu: int,
+	problem_dir: str | None,
+	max_hours: float,
+	max_redirects: int,
+	config_path: Path | None,
+	print_only: bool,
+) -> None:
+	"""Generate an orchestrator prompt for monitored kernel optimization.
+
+	Spawns optimizer agents, monitors checkpoints, and redirects on plateau.
+
+	Example:
+	    kernel-forge orchestrate trimul --gpu 3
+	"""
+	from kernel_forge.config import default_config, load_config
+	from kernel_forge.orchestrate import build_orchestrate_prompt
+
+	if config_path:
+		config = load_config(config_path)
+	else:
+		config = default_config()
+
+	if problem_dir is None:
+		problem_dir = problem_name
+
+	# Build problem context from YAML if available
+	problem_context = ""
+	yaml_path = Path("problems") / f"{problem_name}.yaml"
+	if yaml_path.exists():
+		problem_context = yaml_path.read_text()
+
+	roofline_analysis = (
+		"Compute roofline as your first step "
+		"(see orchestrator prompt instructions)."
+	)
+
+	prompt = build_orchestrate_prompt(
+		problem_name=problem_name,
+		problem_dir=problem_dir,
+		problem_context=problem_context,
+		roofline_analysis=roofline_analysis,
+		gpu_id=gpu,
+		config=config,
+		max_wall_time_hours=max_hours,
+		max_redirects=max_redirects,
+	)
+
+	if print_only:
+		click.echo(prompt)
+	else:
+		from kernel_forge.solve import save_prompt
+		path = save_prompt(prompt, f"{problem_name}_orchestrator")
+		click.echo(f"Orchestrator prompt saved to: {path}")
+		click.echo(f"Prompt size: {len(prompt)} chars")
+		click.echo("")
+		click.echo("To run:")
+		click.echo(
+			f"  claude --permission-mode bypassPermissions"
+			f" -p \"$(cat {path})\" --model opus"
+			f" --max-turns 0 --output-format text"
+		)
+
+
+@main.command()
 def scorecard() -> None:
 	"""Show the evaluation scorecard vs baselines."""
 	from kernel_forge.config import default_config

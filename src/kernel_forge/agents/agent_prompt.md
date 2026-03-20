@@ -144,6 +144,15 @@ Your job is to close the gap between measured performance and hardware peak. Eve
 7. DECIDE     -> gap still > 10%? -> go to 3. gap < 10%? -> stop.
 ```
 
+### Stop Signal
+
+Before each optimization iteration, check for a stop signal from the orchestrator:
+```bash
+ssh b200-node "cat ~/kernel-forge-workspace/<problem>/stop.json 2>/dev/null"
+```
+
+If the file exists, **stop immediately** and report your current best result. The orchestrator is redirecting you to a new strategy. Do not ignore this signal.
+
 ### How to compute FLOPs and bytes
 
 For matmul (M,K) x (K,N): `FLOPs = 2*M*K*N`, `bytes = (M*K + K*N + M*N) * 4` (FP32)

@@ -1,0 +1,73 @@
+name: "GPU MODE Mini Competition 3: AlphaFold TriMul"
+description: |
+  Triangle Multiplicative Update (TriMul) from AlphaFold3/Chai/Protenix.
+  Core BioML operator over 4D tensor [B, N, N, C]. Forward pass only.
+
+  Pipeline: LayerNorm -> 5x Linear projections -> mask + sigmoid gating ->
+  einsum('... i k d, ... j k d -> ... i j d') -> LayerNorm -> gate -> Linear out.
+
+  The einsum is O(B*N^2*N*D) and dominates at large seq_len.
+  Correctness: rtol=2e-2, atol=2e-2 (bf16 einsum allowed).
+  Scoring: geometric mean of 7 benchmark configs.
+type: "kernel"
+
+measure:
+  command: "cd ~/kernel-forge-workspace/trimul && python bench.py --benchmark --no-ref"
+  metric: "geomean_ms"
+  direction: "minimize"
+  parse_regex: "GEOMEAN:\\s+([\\d.]+)\\s+ms"
+  unit: "ms"
+
+profile:
+  commands:
+    - name: "Torch profiler"
+      command: "cd ~/kernel-forge-workspace/trimul && python bench.py --profile"
+      description: "CUDA kernel breakdown on the largest benchmark case (seq=1024, dim=384)"
+    - name: "ncu on einsum"
+      command: "cd ~/kernel-forge-workspace/trimul && ncu --set full -c 1 python bench.py --benchmark-only 2>&1 | head -200"
+      description: "NVIDIA Nsight Compute on benchmark run -- find memory/compute bottlenecks"
+
+targets:
+  leaderboard_best: 0.0  # unknown -- we aren't submitting
+  our_best: 0.0  # will be set after baseline run
+  theoretical_limit: 0.0  # TBD after roofline analysis
+  baselines:
+    starter_template: 0.0  # will be measured
+
+edit:
+  target_files:
+    - "submission.py"
+  read_only_files:
+    - "reference.py"
+    - "task.py"
+    - "utils.py"
+    - "bench.py"
+  working_directory: "~/kernel-forge-workspace/trimul"
+
+execution:
+  mode: "ssh"
+  ssh_host: b200-node
+  ssh_user: danny
+  gpu_id: 3
+  env_vars:
+    CUDA_VISIBLE_DEVICES: "3"
+
+knowledge:
+  strategy_hints:
+    - "The einsum is a batched matmul along the k dimension -- can be expressed as torch.bmm or custom Triton kernel"
+    - "bf16 einsum is already in the starter template and passes correctness (rtol=2e-2)"
+    - "Fuse the 5 linear projections into fewer matmuls (they all share the same input x)"
+    - "Fuse mask * gate elementwise ops into the projection kernels"
+    - "Memory layout: input is [B,N,N,C] -- consider transposing for better matmul alignment"
+    - "torch.compile with reduce-overhead can fuse the elementwise chain automatically"
+    - "For large seq_len (768, 1024), the einsum dominates -- focus optimization there"
+    - "The einsum left[B,N,K,D] @ right[B,N,K,D]^T -> out[B,N,N,D] can be batched over D"
+  reference_docs:
+    - "Read reference.py for the exact computation graph"
+    - "The correctness check uses rtol=2e-2, atol=2e-2 -- bf16 intermediate is fine"
+    - "The competition scores on geomean across 7 benchmark configs with varying seq_len/dim"
+  anti_patterns:
+    - "DO NOT modify reference.py, task.py, utils.py, or bench.py"
+    - "DO NOT look at any leaderboard submissions or public solutions"
+    - "DO NOT change the function signature of custom_kernel"
+    - "Avoid reconstructing the TriMul nn.Module every call -- pre-build or use functional ops"
