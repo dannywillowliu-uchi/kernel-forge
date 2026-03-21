@@ -1,0 +1,69 @@
+name: "VLIW Kernel Challenge"
+description: |
+  Anthropic's performance engineering take-home. Optimize a kernel for a
+  simulated VLIW SIMD machine to achieve the lowest cycle count. The machine
+  has multiple engines (ALU, VALU, load, store, flow) that execute in parallel
+  per cycle. The starter code uses one instruction per cycle -- pack them.
+type: "vliw"
+
+measure:
+  command: "cd /Users/dannyliu/personal_projects/vliw-challenge && python3 tests/submission_tests.py 2>&1 | grep 'CYCLES:' | tail -1"
+  metric: "cycles"
+  direction: "minimize"
+  parse_regex: "CYCLES:\\s+(\\d+)"
+  unit: "cycles"
+
+profile:
+  commands:
+    - name: "Execution trace"
+      command: "python3 watch_trace.py"
+      description: "Shows per-cycle instruction execution. Look for idle engine slots."
+    - name: "Cycle breakdown"
+      command: "python3 -c \"from perf_takehome import *; kb=KernelBuilder(); kb.build_kernel(); print(f'Instructions: {len(kb.instrs)}')\""
+      description: "Count total instructions to estimate packing efficiency."
+
+targets:
+  leaderboard_best: 954
+  our_best: 147734
+  theoretical_limit: 800
+  hiring_threshold: 1487
+  baselines:
+    starter_code: 147734
+    claude_opus_4: 2164
+    claude_opus_4.5_casual: 1790
+    claude_opus_4.5_2hr: 1579
+    claude_opus_4.5_11hr: 1363
+
+edit:
+  target_files:
+    - "perf_takehome.py"
+  read_only_files:
+    - "problem.py"
+    - "tests/submission_tests.py"
+  working_directory: "/Users/dannyliu/personal_projects/vliw-challenge"
+
+execution:
+  mode: "local"
+
+knowledge:
+  strategy_hints:
+    - "VLIW packing: pack independent ops into the same cycle across different engines (alu=12 slots, valu=6, load=2, store=2, flow=1)"
+    - "SIMD vectorization: use valu/vload/vstore to process VLEN=8 elements per slot instead of scalar"
+    - "Loop unrolling: reduce branch overhead by unrolling inner loops"
+    - "Instruction scheduling: reorder ops to maximize engine utilization per cycle"
+    - "Scratch space management: use 1536-word scratch as registers and cache"
+    - "Read-before-write: all reads happen before writes within a cycle, so you can read and write the same address"
+    - "Software pipelining: overlap iterations of a loop to fill pipeline slots"
+  reference_docs:
+    - "Read problem.py THOROUGHLY -- it contains the full ISA documentation in the Machine class docstring"
+    - "The kernel builds a Merkle-like hash tree. Understand the algorithm before optimizing."
+    - "SLOT_LIMITS dict in problem.py defines how many slots each engine can use per cycle"
+  anti_patterns:
+    - "DO NOT modify tests/submission_tests.py"
+    - "DO NOT enable multicore (N_CORES is intentionally 1)"
+    - "DO NOT modify problem.py"
+    - "Many invalid solutions on day one modified tests -- don't cheat"
+  web_search_hints:
+    - "VLIW instruction scheduling algorithms"
+    - "Software pipelining for VLIW"
+    - "Merkle tree hash optimization"
