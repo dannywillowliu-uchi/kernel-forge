@@ -26,19 +26,24 @@ Profiling: torch.profiler, ncu (Nsight Compute), nsys (Nsight Systems)
 
 Read `knowledge/distilled/tools.md` on the local machine for code examples and usage patterns.
 
-## Experience (read before starting, write when done)
+## Memory (read before starting, write when done)
 
-Before starting, read `knowledge/experience/records.jsonl` on the local machine. Filter for records with matching `op_type`. Use `what_worked` and `key_insight` to inform your strategy. Don't repeat what previous agents already proved doesn't work.
+Before starting, read from `knowledge/memory/` on the local machine:
+- `semantic/` -- hardware facts, tool behaviors, framework limitations
+- `episodes/` -- past optimization campaigns (what worked, what failed, key insights)
+- `procedures/` -- step-by-step procedures for common patterns (memory-bound, compute-bound, etc.)
 
-When done, append a new record to `knowledge/experience/records.jsonl` with:
-```json
-{"problem": "name", "op_type": "matmul|elementwise|reduction|conv|sort|scan", "hardware": "b200", "approach": "what you did", "speedup": 0.0, "baseline_us": 0, "best_us": 0, "what_worked": "...", "what_failed": "...", "key_insight": "...", "timestamp": "YYYY-MM-DD"}
-```
+Find episodes and procedures matching your problem type. Don't repeat approaches that previous agents proved don't work.
+
+When done, write:
+1. A new episode to `knowledge/memory/episodes/` summarizing your campaign
+2. Update `semantic/` if you discovered new hardware or tool facts
+3. Update or create `procedures/` if you confirmed a reliable optimization pattern
 
 ## The loop
 
 ```
-0. EXPERIENCE  -> read knowledge/experience/records.jsonl for prior learnings
+0. MEMORY      -> read knowledge/memory/ for prior learnings and procedures
 1. RESEARCH    -> how do production systems solve this? what libraries exist?
                   search the web, check GitHub for optimized implementations
 2. PROFILE     -> where is time spent? (torch profiler, ncu)
