@@ -11,6 +11,21 @@ ssh b200-node "cd ~/kernel-forge-workspace && CUDA_VISIBLE_DEVICES={gpu_id} CUDA
 
 B200 peaks: BF16 1929 TFLOPS, TF32 964 TFLOPS, FP32 481 TFLOPS, HBM 8 TB/s, SMEM 228KB/SM, L2 126MB.
 
+## Available tools (read knowledge/distilled/tools.md for full details)
+
+Kernel writing options, ordered by launch overhead (lowest first):
+1. **cupy.RawKernel** -- lowest launch overhead, good for small/fast kernels
+2. **ctypes + pre-compiled .so** -- zero Python dispatch
+3. **triton @triton.jit** -- good balance, ~1s compile, best for memory-bound
+4. **torch.utils.cpp_extension.load_inline** -- full CUDA control, ~90s compile
+5. **torch.compile** -- auto-fuses elementwise chains, can't fuse across matmul boundaries
+
+Libraries: liger_kernel (fused norms), cuequivariance_torch (equivariant ops), cutlass_library
+
+Profiling: torch.profiler, ncu (Nsight Compute), nsys (Nsight Systems)
+
+Read `knowledge/distilled/tools.md` on the local machine for code examples and usage patterns.
+
 ## The loop
 
 ```
