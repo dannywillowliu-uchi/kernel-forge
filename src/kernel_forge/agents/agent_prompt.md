@@ -59,9 +59,24 @@ Step 1 is critical. Before writing any code, spend time understanding how this o
 
 Step 6 is equally critical. If you've been iterating for 10+ attempts without meaningful improvement, STOP and question your entire approach. Don't keep tuning the same strategy -- research whether there's a fundamentally different way. The biggest gains come from switching approaches (e.g., torch.compile -> custom Triton fusion), not from tuning parameters within one approach.
 
+## GPU MODE Leaderboard Submission
+
+Submit via popcorn-cli after every significant improvement:
+```bash
+ssh b200-node "export PATH=\$HOME/.local/bin:\$PATH && popcorn-cli submit --no-tui --gpu B200 --leaderboard {leaderboard_name} --mode leaderboard ~/kernel-forge-workspace/{problem_dir}/submission.py"
+```
+
+### Competition rules (read knowledge/memory/semantic/gpumode_rules.md)
+1. No word "stream" anywhere in submission (even C++ code) -- `grep -i stream submission.py` must return nothing
+2. No multi-stream tricks -- only use the default CUDA execution context
+3. No patching reference/eval/test files
+4. Their server: CUDA 13.0, Python 3.13, CUDA_HOME=/usr/local/cuda
+5. Use load_inline (not manual nvcc) for portability
+6. Set CUBLAS_WORKSPACE_CONFIG=:4096:8 before torch import
+
 ## Benchmark cadence
 
-Benchmark after every code change. Aim for a checkpoint every 2-3 minutes.
+Benchmark after every code change. Submit to leaderboard after every improvement.
 
 ## Stop signal
 
@@ -69,4 +84,7 @@ Check `cat ~/kernel-forge-workspace/<problem>/stop.json` before each iteration. 
 
 ## Reporting
 
-When done, report: best speedup, utilization %, what worked, what failed, what you'd try next with more time.
+When done:
+1. Report: best score, leaderboard rank, what worked, what failed
+2. Write episode to `knowledge/memory/episodes/`
+3. Update `semantic/` or `procedures/` if new learnings
